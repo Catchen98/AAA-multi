@@ -22,7 +22,7 @@ class Expert:
             if len(results) > 0:
                 frame_results = np.zeros((results.shape[0], results.shape[1] + 1))
                 frame_results[:, 1:] = results
-                frame_results[:, 0] = frame_idx
-                self.history.append(results)
+                frame_results[:, 0] = frame_idx + 1
+                self.history.append(frame_results)
         self.history = np.concatenate(self.history, axis=0)
         return self.history

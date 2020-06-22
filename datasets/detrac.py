@@ -17,10 +17,11 @@ import numpy as np
 
 
 class DETRACDataReader:
-    def __init__(self, image_folder, gt_file_name, ignore_file_name):
+    def __init__(self, name, image_folder, gt_file_name, ignore_file_name):
         datatype = {0: int, 1: int, 2: float, 3: float, 4: float, 5: float}
         datatype_ignore = {0: float, 1: float, 2: float, 3: float}
 
+        self.name = name
         self.image_folder = image_folder
         self.gt_file_name = gt_file_name
         self.ignore_file_name = ignore_file_name
@@ -69,6 +70,8 @@ class DETRACDataReader:
         self.detection_group = self.detection.groupby(0)
         self.detection_group_keys = list(self.detection_group.indices.keys())
 
+        self.c = 0
+
     def __len__(self):
         return len(self.detection_group_keys)
 
@@ -88,6 +91,27 @@ class DETRACDataReader:
 
     def __getitem__(self, item):
         return (self.get_image_by_index(item), self.get_detection_by_index(item))
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.c < len(self):
+            v = self[self.c]
+            self.c += 1
+            return v
+        else:
+            raise StopIteration()
+
+    def write_results(self, results, output_dir):
+        data = np.zeros((len(results), 10))
+        data[:, :6] = results
+        data[:, 6:] = -1
+        df = pd.DataFrame(data)
+
+        os.makedirs(output_dir, exist_ok=True)
+        file_path = os.path.join(output_dir, f"{self.name}.txt")
+        df.to_csv(file_path, index=False, header=False)
 
 
 class DETRAC:
@@ -119,25 +143,27 @@ class DETRAC:
                     det_path = os.path.join(
                         det_dir, det_name, f"{sequence_basename}_Det_{det_name}.txt",
                     )
-                    self.sequence_names[data_type].append(
-                        f"{sequence_basename}_Det_{det_name}"
-                    )
+                    sequence_name = f"{sequence_basename}_Det_{det_name}"
+                    self.sequence_names[data_type].append(sequence_name)
                     self.sequences[data_type].append(
-                        DETRACDataReader(image_dir, det_path)
+                        DETRACDataReader(sequence_name, image_dir, det_path)
                     )
+
+        self.c = 0
 
     def __len__(self):
         return len(self.sequence_names["test"])
 
     def __getitem__(self, item):
-        return (self.sequence_names["test"][item], self.sequences["test"][item])
+        return self.sequences["test"][item]
 
-    def write_results(self, sequence_name, results, output_dir):
-        data = np.zeros((len(results), 10))
-        data[:, :6] = results
-        data[:, 6:] = -1
-        df = pd.DataFrame(data)
+    def __iter__(self):
+        return self
 
-        os.makedirs(output_dir, exist_ok=True)
-        file_path = os.path.join(output_dir, f"{sequence_name}.txt")
-        df.to_csv(file_path, index=False)
+    def __next__(self):
+        if self.c < len(self):
+            v = self[self.c]
+            self.c += 1
+            return v
+        else:
+            raise StopIteration()

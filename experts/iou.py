@@ -39,7 +39,6 @@ class IOU(Expert):
         super(IOU, self).initialize()
         self.tracks_active = []
         self.tracks_finished = []
-        self.frame_num = -1
 
     def track(self, img_path, dets):
         super(IOU, self).track(img_path, dets)
@@ -78,7 +77,7 @@ class IOU(Expert):
             {
                 "bboxes": [det["bbox"]],
                 "max_score": det["score"],
-                "start_frame": self.frame_num,
+                "start_frame": self.frame_idx,
             }
             for det in dets
         ]

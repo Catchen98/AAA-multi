@@ -4,7 +4,7 @@ import numpy as np
 from experts.expert import Expert
 
 sys.path.append("external/sort")
-from sort import Sort
+from sort import Sort, KalmanBoxTracker
 
 
 class ESort(Expert):
@@ -14,6 +14,7 @@ class ESort(Expert):
     def initialize(self):
         super(ESort, self).initialize()
         self.tracker = Sort()
+        KalmanBoxTracker.count = 0
 
     def track(self, img_path, dets):
         super(ESort, self).track(img_path, dets)
