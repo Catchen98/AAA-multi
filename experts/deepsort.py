@@ -2,6 +2,8 @@ import sys
 import numpy as np
 import cv2
 
+from experts.expert import Expert
+
 sys.path.append("external/deep_sort")
 from deep_sort import nn_matching
 from deep_sort.tracker import Tracker
@@ -10,28 +12,54 @@ from application_util import preprocessing
 from tools.generate_detections import create_box_encoder
 
 
-class DeepSort:
-    def __init__(self):
-        super(DeepSort, self).__init__()
-        self.min_confidence = 0.3
-        self.nn_budget = 100
-        self.min_detection_height = 0
-        self.nms_max_overlap = 1.0
-        self.max_cosine_distance = 0.2
-        self.model = "resources/networks/mars-small128.pb"
+class DeepSort(Expert):
+    def __init__(
+        self,
+        model,
+        min_confidence,
+        nms_max_overlap,
+        min_detection_height,
+        max_cosine_distance,
+        nn_budget,
+    ):
+        super(DeepSort, self).__init__("DeepSort")
+
+        self.model = model
         self.encoder = create_box_encoder(self.model, batch_size=32)
+
+        self.min_confidence = min_confidence
+        self.nms_max_overlap = nms_max_overlap
+        self.min_detection_height = min_detection_height
+
+        self.max_cosine_distance = max_cosine_distance
+        self.nn_budget = nn_budget
         self.metric = nn_matching.NearestNeighborDistanceMetric(
             "cosine", self.max_cosine_distance, self.nn_budget
         )
 
     def initialize(self):
+        super(DeepSort, self).initialize()
         self.tracker = Tracker(self.metric)
-        self.frame_idx = -1
-        self.history = []
 
     def track(self, img_path, dets):
-        self.frame_idx += 1
+        super(DeepSort, self).track(img_path, dets)
 
+        detections = self.preprocess(img_path, dets)
+
+        # Update tracker.
+        self.tracker.predict()
+        self.tracker.update(detections)
+
+        # Store results.
+        results = []
+        for track in self.tracker.tracks:
+            if not track.is_confirmed() or track.time_since_update > 1:
+                continue
+            bbox = track.to_tlwh()
+            results.append([track.track_id, bbox[0], bbox[1], bbox[2], bbox[3]])
+        return results
+
+    def preprocess(self, img_path, dets):
         bgr_image = cv2.imread(img_path, cv2.IMREAD_COLOR)
         features = self.encoder(bgr_image, dets[:, 2:6].copy())
         detections_out = [np.r_[(row, feature)] for row, feature in zip(dets, features)]
@@ -50,17 +78,5 @@ class DeepSort:
         scores = np.array([d.confidence for d in detections])
         indices = preprocessing.non_max_suppression(boxes, self.nms_max_overlap, scores)
         detections = [detections[i] for i in indices]
+        return detections
 
-        # Update tracker.
-        self.tracker.predict()
-        self.tracker.update(detections)
-
-        # Store results.
-        results = []
-        for track in self.tracker.tracks:
-            if not track.is_confirmed() or track.time_since_update > 1:
-                continue
-            bbox = track.to_tlwh()
-            results.append([track.track_id, bbox[0], bbox[1], bbox[2], bbox[3]])
-        self.history.append(results)
-        return results

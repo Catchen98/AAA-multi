@@ -1,32 +1,58 @@
 import sys
+import numpy as np
 import cv2
+
+from experts.expert import Expert
 
 sys.path.append("external/iou-tracker")
 from viou_tracker import associate
 from vis_tracker import VisTracker
+from util import iou, nms
 
 
-class VIOU:
-    def __init__(self):
+class VIOU(Expert):
+    def __init__(
+        self,
+        nms_overlap_thresh,
+        nms_per_class,
+        with_classes,
+        sigma_l,
+        sigma_h,
+        sigma_iou,
+        t_min,
+        ttl,
+        tracker_type,
+        keep_upper_height_ratio,
+    ):
         super(VIOU, self).__init__()
-        self.sigma_l = None
-        self.sigma_h = None
-        self.sigma_iou = None
-        self.t_min = None
-        self.ttl = None
-        self.tracker_type = None
-        self.keep_upper_height_ratio = None
-        self.with_classes = False
+        self.nms_overlap_thresh = nms_overlap_thresh
+        self.nms_per_class = nms_per_class
+        self.with_classes = with_classes
+        self.sigma_l = sigma_l
+        self.sigma_h = sigma_h
+        self.sigma_iou = sigma_iou
+        self.t_min = t_min
+        self.ttl = ttl
+        self.tracker_type = tracker_type
+        self.keep_upper_height_ratio = keep_upper_height_ratio
+
+        self.visdrone_classes = {
+            "car": 4,
+            "bus": 9,
+            "truck": 6,
+            "pedestrian": 1,
+            "van": 5,
+        }
 
     def initialize(self):
+        super(VIOU, self).initialize()
         self.tracks_active = []
         self.tracks_extendable = []
         self.tracks_finished = []
         self.frame_buffer = []
-        self.frame_num = -1
 
     def track(self, img_path, dets):
-        self.frame_num += 1
+        super(VIOU, self).track(img_path, dets)
 
         frame = cv2.imread(img_path)
         self.frame_buffer.append(frame)
@@ -88,7 +114,7 @@ class VIOU:
         for track in self.tracks_extendable:
             if (
                 track["start_frame"] + len(track["bboxes"]) + self.ttl - track["ttl"]
-                >= self.frame_num
+                >= self.frame_idx
             ):
                 tracks_extendable_updated.append(track)
             elif (
@@ -126,7 +152,7 @@ class VIOU:
                         track["start_frame"]
                         + len(track["bboxes"])
                         + len(boxes)
-                        - self.frame_num
+                        - self.frame_idx
                     )
                     # association not optimal (LAP solving might be better)
                     # association is performed at the same frame, not adjacent ones
@@ -141,7 +167,7 @@ class VIOU:
                         track["bboxes"].append(det["bbox"])
                         track["max_score"] = max(track["max_score"], det["score"])
                         track["classes"].append(det["class"])
-                        track["ttl"] = ttl
+                        track["ttl"] = self.ttl
                         track["visual_tracker"] = None
 
                         tracks_extendable.remove(track)
@@ -161,7 +187,7 @@ class VIOU:
             {
                 "bboxes": [det["bbox"]],
                 "max_score": det["score"],
-                "start_frame": self.frame_num,
+                "start_frame": self.frame_idx,
                 "ttl": self.ttl,
                 "classes": [det["class"]],
                 "det_counter": 1,

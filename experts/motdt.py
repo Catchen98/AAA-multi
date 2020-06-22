@@ -1,22 +1,26 @@
 import sys
-import numpy as np
 
 from scipy.misc import imread
+
+from experts.expert import Expert
 
 sys.path.append("external/MOTDT")
 from tracker.mot_tracker import OnlineTracker
 
 
-class MOTDT:
-    def __init__(self):
-        super(MOTDT, self).__init__()
-        self.min_height = 0
-        self.min_det_score = -np.inf
+class MOTDT(Expert):
+    def __init__(self, min_height, min_det_score):
+        super(MOTDT, self).__init__("MOTDT")
+        self.min_height = min_height
+        self.min_det_score = min_det_score
 
     def initialize(self):
+        super(MOTDT, self).initialize()
         self.tracker = OnlineTracker()
 
     def track(self, img_path, dets):
+        super(MOTDT, self).track(img_path, dets)
+
         frame, det_tlwhs, det_scores = self.preprocess(img_path, dets)
 
         online_targets = self.tracker.update(frame, det_tlwhs, None)

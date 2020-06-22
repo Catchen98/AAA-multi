@@ -6,7 +6,6 @@ https://github.com/shijieS/SST
 import os
 import numpy as np
 import pandas as pd
-import cv2
 
 
 class MOTDataReader:
@@ -35,7 +34,7 @@ class MOTDataReader:
         if index > len(self.detection_group_keys):
             return None
 
-        return cv2.imread(self.image_format.format(index))
+        return self.image_format.format(index)
 
     def __getitem__(self, item):
         return (

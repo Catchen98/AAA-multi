@@ -7,22 +7,25 @@ import yaml
 import torch
 from torchvision.transforms import Compose, Normalize, ToTensor
 
+from experts.expert import Expert
+
 sys.path.append("external/deepmot/test_tracktor")
 from src.frcnn.frcnn.model import test
 from src.tracktor.tracker import Tracker
 
 
-class DeepMOT:
-    def __init__(self):
-        super(DeepMOT, self).__init__()
+class DeepMOT(Expert):
+    def __init__(
+        self, tracktor_config_path, obj_detect_weights_path, obj_detect_config_path
+    ):
+        super(DeepMOT, self).__init__("DeepMOT")
         normalize_mean = [0.485, 0.456, 0.406]
         normalize_std = [0.229, 0.224, 0.225]
         self.transforms = Compose(
             [ToTensor(), Normalize(normalize_mean, normalize_std)]
         )
 
-        tracktor_config = ""
-        with open(tracktor_config) as config_file:
+        with open(tracktor_config_path) as config_file:
             tracktor = yaml.full_load(config_file)["tracktor"]
 
         # set all seeds
@@ -44,7 +47,7 @@ class DeepMOT:
             config.cfg.TRAIN.USE_FLIPPED = False
             config.cfg.CUDA = True
             config.cfg.TRAIN.USE_FLIPPED = False
-            checkpoint = torch.load(tracktor["obj_detect_weights"])
+            checkpoint = torch.load(obj_detect_weights_path)
 
             if "pooling_mode" in checkpoint.keys():
                 config.cfg.POOLING_MODE = checkpoint["pooling_mode"]
@@ -52,10 +55,10 @@ class DeepMOT:
                 config.cfg.POOLING_MODE = "align"
 
             set_cfgs = ["ANCHOR_SCALES", "[4, 8, 16, 32]", "ANCHOR_RATIOS", "[0.5,1,2]"]
-            config.cfg_from_file(tracktor["obj_detect_config"])
+            config.cfg_from_file(obj_detect_config_path)
             config.cfg_from_list(set_cfgs)
 
-            if "fpn_1_12.pth" in tracktor["obj_detect_weights"]:
+            if "fpn_1_12.pth" in obj_detect_weights_path:
                 classes = (
                     "__background__",
                     "aeroplane",
@@ -111,11 +114,11 @@ class DeepMOT:
         self.tracker = Tracker(obj_detect, None, tracktor["tracker"])
 
     def initialize(self):
+        super(DeepMOT, self).initialize()
         self.tracker.reset()
-        self.frame_idx = -1
 
     def track(self, img_path, dets):
-        self.frame_idx += 1
+        super(DeepMOT, self).track(img_path, dets)
 
         frame = self.preprocess(img_path, dets)
         frame["im_info"] = frame["im_info"].cuda()

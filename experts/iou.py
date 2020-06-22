@@ -1,29 +1,48 @@
 import sys
 import numpy as np
 
+from experts.expert import Expert
+
 sys.path.append("external/iou-tracker")
 from util import iou, nms
 
 
-class IOU:
-    def __init__(self):
-        super(IOU, self).__init__()
-        self.nms_overlap_thresh = None
-        self.visdrone_classes = None
-        self.nms_per_class = None
-        self.with_classes = False
-        self.sigma_l = None
-        self.sigma_h = None
-        self.t_min = None
-        self.sigma_iou = None
+class IOU(Expert):
+    def __init__(
+        self,
+        nms_overlap_thresh,
+        nms_per_class,
+        with_classes,
+        sigma_l,
+        sigma_h,
+        sigma_iou,
+        t_min,
+    ):
+        super(IOU, self).__init__("IOU")
+        self.nms_overlap_thresh = nms_overlap_thresh
+        self.nms_per_class = nms_per_class
+        self.with_classes = with_classes
+        self.sigma_l = sigma_l
+        self.sigma_h = sigma_h
+        self.sigma_iou = sigma_iou
+        self.t_min = t_min
+
+        self.visdrone_classes = {
+            "car": 4,
+            "bus": 9,
+            "truck": 6,
+            "pedestrian": 1,
+            "van": 5,
+        }
 
     def initialize(self):
+        super(IOU, self).initialize()
         self.tracks_active = []
         self.tracks_finished = []
         self.frame_num = -1
 
     def track(self, img_path, dets):
-        self.frame_num += 1
+        super(IOU, self).track(img_path, dets)
 
         # apply low threshold to detections
         dets = self.preprocess(dets, self.with_classes)
