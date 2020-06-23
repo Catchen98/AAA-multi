@@ -79,4 +79,3 @@ class DeepSort(Expert):
         indices = preprocessing.non_max_suppression(boxes, self.nms_max_overlap, scores)
         detections = [detections[i] for i in indices]
         return detections
-

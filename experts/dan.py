@@ -9,11 +9,13 @@ from config.config import config
 
 
 class DAN(Expert):
-    def __init__(self, choice):
+    def __init__(self, model_path, choice=None):
         super(DAN, self).__init__("DAN")
 
         self.choice = choice
-        TrackerConfig.set_configure(self.choice)
+        if self.choice is not None:
+            TrackerConfig.set_configure(self.choice)
+        config["resume"] = model_path
 
     def initialize(self):
         super(DAN, self).initialize()
@@ -21,6 +23,9 @@ class DAN(Expert):
 
     def track(self, img_path, dets):
         super(DAN, self).track(img_path, dets)
+
+        if dets is None:
+            return []
 
         img, dets, h, w = self.preprocess(img_path, dets)
         self.tracker.update(img, dets[:, 2:6], False, self.frame_idx + 1)

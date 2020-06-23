@@ -138,11 +138,6 @@ class DeepMOT(Expert):
         return results
 
     def preprocess(self, img_path, dets):
-        bb = np.zeros((len(dets), 5), dtype=np.float32)
-        bb[:, 0:2] = dets[:, 2:4] - 1
-        bb[:, 2:4] = dets[:, 2:4] + dets[:, 4:6] - 1
-        bb[:, 4] = dets[:, 6]
-
         # construct image blob and return new dictionary, so blobs are not saved into this class
         im = cv2.imread(img_path)
         blobs, im_scales = test._get_blobs(im)
@@ -162,7 +157,14 @@ class DeepMOT(Expert):
         sample["app_data"] = im.unsqueeze(0)
 
         sample["dets"] = []
-        # resize tracks
-        for det in bb:
-            sample["dets"].append(np.hstack([det[:4] * sample["im_info"][2], det[4:5]]))
+        if dets is not None:
+            bb = np.zeros((len(dets), 5), dtype=np.float32)
+            bb[:, 0:2] = dets[:, 2:4] - 1
+            bb[:, 2:4] = dets[:, 2:4] + dets[:, 4:6] - 1
+            bb[:, 4] = dets[:, 6]
+            # resize tracks
+            for det in bb:
+                sample["dets"].append(
+                    np.hstack([det[:4] * sample["im_info"][2], det[4:5]])
+                )
         return sample

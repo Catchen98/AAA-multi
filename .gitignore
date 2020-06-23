@@ -133,3 +133,6 @@ external/
 
 # vscode
 .vscode
+
+# models
+models/
