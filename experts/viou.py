@@ -13,18 +13,18 @@ from util import iou, nms
 class VIOU(Expert):
     def __init__(
         self,
-        nms_overlap_thresh,
-        nms_per_class,
-        with_classes,
-        sigma_l,
-        sigma_h,
-        sigma_iou,
-        t_min,
-        ttl,
-        tracker_type,
-        keep_upper_height_ratio,
+        nms_overlap_thresh=None,
+        nms_per_class=True,
+        with_classes=False,
+        sigma_l=0,
+        sigma_h=0.5,
+        sigma_iou=0.5,
+        t_min=2,
+        ttl=1,
+        tracker_type="NONE",
+        keep_upper_height_ratio=1.0,
     ):
-        super(VIOU, self).__init__()
+        super(VIOU, self).__init__("VIOU")
         self.nms_overlap_thresh = nms_overlap_thresh
         self.nms_per_class = nms_per_class
         self.with_classes = with_classes
@@ -35,6 +35,18 @@ class VIOU(Expert):
         self.ttl = ttl
         self.tracker_type = tracker_type
         self.keep_upper_height_ratio = keep_upper_height_ratio
+
+        if self.tracker_type not in [
+            "BOOSTING",
+            "MIL",
+            "KCF",
+            "KCF2",
+            "TLD",
+            "MEDIANFLOW",
+            "GOTURN",
+            "NONE",
+        ]:
+            raise ValueError("Invalid tracker_type")
 
         self.visdrone_classes = {
             "car": 4,
@@ -122,7 +134,7 @@ class VIOU(Expert):
                 and track["det_counter"] >= self.t_min
             ):
                 self.tracks_finished.append(track)
-        tracks_extendable = tracks_extendable_updated
+        self.tracks_extendable = tracks_extendable_updated
 
         new_dets = [dets[idx] for idx in set(range(len(dets))).difference(set(det_ids))]
         dets_for_new = []
@@ -145,7 +157,7 @@ class VIOU(Expert):
                 # sorting is not really necessary but helps to avoid different behaviour for different orderings
                 # preferring longer tracks for extension seems intuitive, LAP solving might be better
                 for track in sorted(
-                    tracks_extendable, key=lambda x: len(x["bboxes"]), reverse=True
+                    self.tracks_extendable, key=lambda x: len(x["bboxes"]), reverse=True
                 ):
 
                     offset = (
@@ -170,7 +182,7 @@ class VIOU(Expert):
                         track["ttl"] = self.ttl
                         track["visual_tracker"] = None
 
-                        tracks_extendable.remove(track)
+                        self.tracks_extendable.remove(track)
                         if track in self.tracks_finished:
                             del self.tracks_finished[self.tracks_finished.index(track)]
                         updated_tracks.append(track)
@@ -195,26 +207,30 @@ class VIOU(Expert):
             }
             for det in dets_for_new
         ]
-        tracks_active = []
+        self.tracks_active = []
         for track in updated_tracks + new_tracks:
             if track["ttl"] == 0:
-                tracks_extendable.append(track)
+                self.tracks_extendable.append(track)
             else:
-                tracks_active.append(track)
+                self.tracks_active.append(track)
 
         results = [
             [
                 id,
-                track["bboxes"][0],  # x
-                track["bboxes"][1],  # y
-                track["bboxes"][2] - track["bboxes"][0],  # w
-                track["bboxes"][3] - track["bboxes"][1],  # h
+                track["bboxes"][-1][0],  # x
+                track["bboxes"][-1][1],  # y
+                track["bboxes"][-1][2] - track["bboxes"][-1][0],  # w
+                track["bboxes"][-1][3] - track["bboxes"][-1][1],  # h
             ]
             for id, track in enumerate(self.tracks_active + self.tracks_extendable)
         ]
+
         return results
 
     def preprocess(self, dets, with_classes):
+        if dets is None:
+            return []
+
         bbox = dets[:, 2:6]
         bbox[:, 2:4] += bbox[:, 0:2]  # x1, y1, w, h -> x1, y1, x2, y2
         bbox -= 1  # correct 1,1 matlab offset

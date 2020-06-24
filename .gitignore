@@ -135,4 +135,7 @@ external/
 .vscode
 
 # models
-models/
+data/
+
+# result
+output/

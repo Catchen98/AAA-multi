@@ -1,34 +1,36 @@
 import sys
 import numpy as np
 from PIL import Image
+import cv2
 import yaml
 
 import torch
-from torchvision.transforms import ToTensor
+from torchvision.transforms import Compose, Normalize, ToTensor
 
 from experts.expert import Expert
 
 sys.path.append("external/tracking_wo_bnw")
+from src.tracktor.oracle_tracker import OracleTracker
 from src.tracktor.frcnn_fpn import FRCNN_FPN
-from src.tracktor.reid.resnet import resnet50
 from src.tracktor.tracker import Tracker
+from src.tracktor.reid.resnet import resnet50
 
 
 class Tracktor(Expert):
     def __init__(
         self,
+        reid_network_weights_path,
+        obj_detect_model_path,
         tracktor_config_path,
         reid_config_path,
-        reid_weights_path,
-        obj_detect_model_path,
     ):
         super(Tracktor, self).__init__("Tracktor")
 
         with open(tracktor_config_path) as config_file:
-            tracktor = yaml.full_load(config_file)["tracktor"]
+            tracktor = yaml.unsafe_load(config_file)["tracktor"]
 
         with open(reid_config_path) as config_file:
-            reid = yaml.full_load(config_file)["reid"]
+            reid = yaml.unsafe_load(config_file)["reid"]
 
         # set all seeds
         torch.manual_seed(tracktor["seed"])
@@ -54,13 +56,20 @@ class Tracktor(Expert):
         # reid
         reid_network = resnet50(pretrained=False, **reid["cnn"])
         reid_network.load_state_dict(
-            torch.load(reid_weights_path, map_location=lambda storage, loc: storage)
+            torch.load(
+                reid_network_weights_path, map_location=lambda storage, loc: storage
+            )
         )
         reid_network.eval()
         reid_network.cuda()
 
         # tracktor
-        self.tracker = Tracker(obj_detect, reid_network, tracktor["tracker"])
+        if "oracle" in tracktor:
+            self.tracker = OracleTracker(
+                obj_detect, reid_network, tracktor["tracker"], tracktor["oracle"]
+            )
+        else:
+            self.tracker = Tracker(obj_detect, reid_network, tracktor["tracker"])
 
         self.transforms = ToTensor()
 
@@ -87,20 +96,14 @@ class Tracktor(Expert):
         return results
 
     def preprocess(self, img_path, dets):
-        bb = np.zeros((len(dets), 5), dtype=np.float32)
-        bb[:, 0:2] = dets[:, 2:4] - 1
-        bb[:, 2:4] = dets[:, 2:4] + dets[:, 4:6] - 1
-        bb[:, 4] = dets[:, 6]
-
-        # construct image blob and return new dictionary, so blobs are not saved into this class
         img = Image.open(img_path).convert("RGB")
         img = self.transforms(img)
 
         sample = {}
-        sample["img"] = img
-        sample["dets"] = torch.tensor(dets[:, :4])
+        sample["img"] = img.unsqueeze(0)
+        if dets is not None:
+            sample["dets"] = torch.FloatTensor([det[:4] for det in dets]).unsqueeze(0)
+        else:
+            sample["dets"] = torch.tensor([])
         sample["img_path"] = img_path
-        sample["gt"] = {}
-        sample["vis"] = {}
-
         return sample

@@ -10,13 +10,13 @@ from util import iou, nms
 class IOU(Expert):
     def __init__(
         self,
-        nms_overlap_thresh,
-        nms_per_class,
-        with_classes,
-        sigma_l,
-        sigma_h,
-        sigma_iou,
-        t_min,
+        nms_overlap_thresh=None,
+        nms_per_class=True,
+        with_classes=False,
+        sigma_l=0,
+        sigma_h=0.5,
+        sigma_iou=0.5,
+        t_min=2,
     ):
         super(IOU, self).__init__("IOU")
         self.nms_overlap_thresh = nms_overlap_thresh
@@ -86,16 +86,18 @@ class IOU(Expert):
         results = [
             [
                 id,
-                track["bboxes"][0],  # x
-                track["bboxes"][1],  # y
-                track["bboxes"][2] - track["bboxes"][0],  # w
-                track["bboxes"][3] - track["bboxes"][1],  # h
+                track["bboxes"][-1][0],  # x
+                track["bboxes"][-1][1],  # y
+                track["bboxes"][-1][2] - track["bboxes"][-1][0],  # w
+                track["bboxes"][-1][3] - track["bboxes"][-1][1],  # h
             ]
             for id, track in enumerate(self.tracks_active)
         ]
         return results
 
     def preprocess(self, dets, with_classes):
+        if dets is None:
+            return []
         bbox = dets[:, 2:6]
         bbox[:, 2:4] += bbox[:, 0:2]  # x1, y1, w, h -> x1, y1, x2, y2
         bbox -= 1  # correct 1,1 matlab offset

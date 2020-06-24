@@ -1,7 +1,7 @@
 import sys
 import numpy as np
-import cv2
 from PIL import Image
+import cv2
 import yaml
 
 import torch
@@ -9,24 +9,34 @@ from torchvision.transforms import Compose, Normalize, ToTensor
 
 from experts.expert import Expert
 
-sys.path.append("external/deepmot/test_tracktor")
-from src.frcnn.frcnn.model import test
+sys.path.append("external/tracking_wo_bnw")
+sys.path.append("external/tracking_wo_bnw/src/frcnn")
+sys.path.append("external/tracking_wo_bnw/src/fpn")
+from src.tracktor.resnet import resnet50
 from src.tracktor.tracker import Tracker
+from src.tracktor.oracle_tracker import OracleTracker
+from src.frcnn.frcnn.model import test
 
 
-class DeepMOT(Expert):
+class Tracktor(Expert):
     def __init__(
-        self, obj_detect_weights_path, tracktor_config_path, obj_detect_config_path
+        self,
+        reid_network_weights_path,
+        obj_detect_model_path,
+        tracktor_config_path,
+        reid_network_config_path,
+        obj_detect_config_path,
     ):
-        super(DeepMOT, self).__init__("DeepMOT")
-        normalize_mean = [0.485, 0.456, 0.406]
-        normalize_std = [0.229, 0.224, 0.225]
-        self.transforms = Compose(
-            [ToTensor(), Normalize(normalize_mean, normalize_std)]
-        )
+        super(Tracktor, self).__init__("Tracktor")
 
         with open(tracktor_config_path) as config_file:
-            tracktor = yaml.full_load(config_file)["tracktor"]
+            tracktor = yaml.unsafe_load(config_file)["tracktor"]
+
+        with open(reid_network_config_path) as config_file:
+            siamese = yaml.unsafe_load(config_file)["siamese"]
+
+        with open(obj_detect_config_path) as config_file:
+            _config = yaml.unsafe_load(config_file)
 
         # set all seeds
         torch.manual_seed(tracktor["seed"])
@@ -39,69 +49,46 @@ class DeepMOT(Expert):
         ##########################
 
         # object detection
-        if tracktor["network"].startswith("fpn"):
+        print("[*] Building object detector")
+        if tracktor["network"].startswith("frcnn"):
+            # FRCNN
+            from src.tracktor.frcnn import FRCNN
+            from frcnn.model import config
+
+            if _config["frcnn"]["cfg_file"]:
+                config.cfg_from_file(_config["frcnn"]["cfg_file"])
+            if _config["frcnn"]["set_cfgs"]:
+                config.cfg_from_list(_config["frcnn"]["set_cfgs"])
+
+            obj_detect = FRCNN(num_layers=101)
+            obj_detect.create_architecture(
+                2,
+                tag="default",
+                anchor_scales=config.cfg.ANCHOR_SCALES,
+                anchor_ratios=config.cfg.ANCHOR_RATIOS,
+            )
+            obj_detect.load_state_dict(torch.load(obj_detect_model_path))
+        elif tracktor["network"].startswith("fpn"):
             # FPN
             from src.tracktor.fpn import FPN
-            from src.fpn.fpn.model.utils import config
+            from fpn.model.utils import config
 
             config.cfg.TRAIN.USE_FLIPPED = False
             config.cfg.CUDA = True
             config.cfg.TRAIN.USE_FLIPPED = False
-            checkpoint = torch.load(obj_detect_weights_path)
+            checkpoint = torch.load(obj_detect_model_path)
 
             if "pooling_mode" in checkpoint.keys():
                 config.cfg.POOLING_MODE = checkpoint["pooling_mode"]
-            else:
-                config.cfg.POOLING_MODE = "align"
 
             set_cfgs = ["ANCHOR_SCALES", "[4, 8, 16, 32]", "ANCHOR_RATIOS", "[0.5,1,2]"]
             config.cfg_from_file(obj_detect_config_path)
             config.cfg_from_list(set_cfgs)
 
-            if "fpn_1_12.pth" in obj_detect_weights_path:
-                classes = (
-                    "__background__",
-                    "aeroplane",
-                    "bicycle",
-                    "bird",
-                    "boat",
-                    "bottle",
-                    "bus",
-                    "car",
-                    "cat",
-                    "chair",
-                    "cow",
-                    "diningtable",
-                    "dog",
-                    "horse",
-                    "motorbike",
-                    "person",
-                    "pottedplant",
-                    "sheep",
-                    "sofa",
-                    "train",
-                    "tvmonitor",
-                )
-            else:
-                classes = ("__background__", "pedestrian")
-
-            obj_detect = FPN(classes, 101, pretrained=False)
+            obj_detect = FPN(("__background__", "pedestrian"), 101, pretrained=False)
             obj_detect.create_architecture()
-            if "model" in checkpoint.keys():
 
-                model_dcit = obj_detect.state_dict()
-                model_dcit.update(checkpoint["model"])
-                obj_detect.load_state_dict(model_dcit)
-
-                # obj_detect.load_state_dict(checkpoint['model'])
-
-                # obj_detect.load_state_dict(checkpoint['model'])
-            else:
-                # pick the reid branch
-                model_dcit = obj_detect.state_dict()
-                model_dcit.update(checkpoint)
-                obj_detect.load_state_dict(model_dcit)
-
+            obj_detect.load_state_dict(checkpoint["model"])
         else:
             raise NotImplementedError(
                 f"Object detector type not known: {tracktor['network']}"
@@ -110,20 +97,37 @@ class DeepMOT(Expert):
         obj_detect.eval()
         obj_detect.cuda()
 
+        # reid
+        reid_network = resnet50(pretrained=False, **siamese["cnn"])
+        reid_network.load_state_dict(torch.load(reid_network_weights_path))
+        reid_network.eval()
+        reid_network.cuda()
+
         # tracktor
-        self.tracker = Tracker(obj_detect, None, tracktor["tracker"])
+        if "oracle" in tracktor:
+            self.tracker = OracleTracker(
+                obj_detect, reid_network, tracktor["tracker"], tracktor["oracle"]
+            )
+        else:
+            self.tracker = Tracker(obj_detect, reid_network, tracktor["tracker"])
+
+        normalize_mean = [0.485, 0.456, 0.406]
+        normalize_std = [0.229, 0.224, 0.225]
+        self.transforms = Compose(
+            [ToTensor(), Normalize(normalize_mean, normalize_std)]
+        )
 
     def initialize(self):
-        super(DeepMOT, self).initialize()
+        super(Tracktor, self).initialize()
         self.tracker.reset()
 
     def track(self, img_path, dets):
-        super(DeepMOT, self).track(img_path, dets)
+        super(Tracktor, self).track(img_path, dets)
 
         frame = self.preprocess(img_path, dets)
         frame["im_info"] = frame["im_info"].cuda()
-        frame["app_data"] = frame["app_data"].cuda()
-        self.tracker.step_pub_reid(frame)
+        # frame["app_data"] = frame["app_data"].cuda()
+        self.tracker.step(frame)
 
         results = []
         for i, track in self.tracker.get_results().items():
@@ -134,7 +138,6 @@ class DeepMOT(Expert):
                 w = bb[2] - bb[0]
                 h = bb[3] - bb[1]
                 results.append([i, x1 + 1, y1 + 1, w + 1, h + 1])
-
         return results
 
     def preprocess(self, img_path, dets):
@@ -154,7 +157,7 @@ class DeepMOT(Expert):
         im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
         im = Image.fromarray(im)
         im = self.transforms(im)
-        sample["app_data"] = im.unsqueeze(0)
+        sample["app_data"] = im.unsqueeze(0).unsqueeze(0)
 
         sample["dets"] = []
         if dets is not None:

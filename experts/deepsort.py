@@ -16,11 +16,11 @@ class DeepSort(Expert):
     def __init__(
         self,
         model,
-        min_confidence,
-        nms_max_overlap,
-        min_detection_height,
-        max_cosine_distance,
-        nn_budget,
+        min_confidence=0.8,
+        min_detection_height=0,
+        nms_max_overlap=1.0,
+        max_cosine_distance=0.2,
+        nn_budget=None,
     ):
         super(DeepSort, self).__init__("DeepSort")
 
@@ -28,8 +28,8 @@ class DeepSort(Expert):
         self.encoder = create_box_encoder(self.model, batch_size=32)
 
         self.min_confidence = min_confidence
-        self.nms_max_overlap = nms_max_overlap
         self.min_detection_height = min_detection_height
+        self.nms_max_overlap = nms_max_overlap
 
         self.max_cosine_distance = max_cosine_distance
         self.nn_budget = nn_budget
@@ -60,6 +60,8 @@ class DeepSort(Expert):
         return results
 
     def preprocess(self, img_path, dets):
+        if dets is None:
+            return []
         bgr_image = cv2.imread(img_path, cv2.IMREAD_COLOR)
         features = self.encoder(bgr_image, dets[:, 2:6].copy())
         detections_out = [np.r_[(row, feature)] for row, feature in zip(dets, features)]

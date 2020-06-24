@@ -1,6 +1,6 @@
 import sys
-
-from scipy.misc import imread
+import numpy as np
+from PIL import Image
 
 from experts.expert import Expert
 
@@ -9,7 +9,7 @@ from tracker.mot_tracker import OnlineTracker
 
 
 class MOTDT(Expert):
-    def __init__(self, min_height, min_det_score):
+    def __init__(self, min_height=0, min_det_score=-np.inf):
         super(MOTDT, self).__init__("MOTDT")
         self.min_height = min_height
         self.min_det_score = min_det_score
@@ -30,8 +30,11 @@ class MOTDT(Expert):
         return results
 
     def preprocess(self, img_path, dets):
-        im = imread(img_path)  # rgb
+        im = Image.open(img_path)  # rgb
         im = im[:, :, ::-1]  # bgr
+
+        if dets is None:
+            return im, [], []
 
         tlwhs = dets[:, 2:6]
         scores = dets[:, 6]

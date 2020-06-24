@@ -14,10 +14,13 @@ class Expert:
     def track(self, img_path, dets):
         self.frame_idx += 1
 
-    def track_seq(self, seq):
+    def track_seq(self, seq, debug=False):
         for frame_idx, (img_path, dets) in enumerate(seq):
-            with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
+            if debug:
                 results = self.track(img_path, dets)
+            else:
+                with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
+                    results = self.track(img_path, dets)
             results = np.array(results)
             if len(results) > 0:
                 frame_results = np.zeros((results.shape[0], results.shape[1] + 1))
