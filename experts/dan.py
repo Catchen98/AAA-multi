@@ -5,20 +5,33 @@ from expert import Expert
 
 sys.path.append("external/SST")
 from tracker import SSTTracker, TrackerConfig
-from config.config import config
+from config.config import config, init_test_mot15, init_test_mot17, init_test_ua
 
 
 class DAN(Expert):
-    def __init__(self, model_path, choice=None):
+    def __init__(self, model_path):
         super(DAN, self).__init__("DAN")
+        self.model_path = model_path
+
+    def initialize(self, dataset_name, seq_name):
+        super(DAN, self).initialize()
+
+        if dataset_name == "MOT15":
+            choice = (0, 0, 4, 4, 5, 4)
+            init_test_mot15()
+        elif dataset_name == "MOT17":
+            choice = (0, 0, 4, 0, 3, 3)
+            init_test_mot17()
+        elif dataset_name == "DETRAC":
+            choice = TrackerConfig.get_ua_choice()
+            init_test_ua()
+        else:
+            choice = (0, 0, 4, 0, 3, 3)
+            init_test_mot17()
 
         self.choice = choice
-        if self.choice is not None:
-            TrackerConfig.set_configure(self.choice)
-        config["resume"] = model_path
-
-    def initialize(self):
-        super(DAN, self).initialize()
+        TrackerConfig.set_configure(self.choice)
+        config["resume"] = self.model_path
         self.tracker = SSTTracker()
 
     def track(self, img_path, dets):

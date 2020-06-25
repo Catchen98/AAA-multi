@@ -14,31 +14,32 @@ from tools.generate_detections import create_box_encoder
 
 class DeepSort(Expert):
     def __init__(
-        self,
-        model,
-        min_confidence=0.8,
-        min_detection_height=0,
-        nms_max_overlap=1.0,
-        max_cosine_distance=0.2,
-        nn_budget=None,
+        self, model,
     ):
         super(DeepSort, self).__init__("DeepSort")
 
         self.model = model
         self.encoder = create_box_encoder(self.model, batch_size=32)
 
-        self.min_confidence = min_confidence
-        self.min_detection_height = min_detection_height
-        self.nms_max_overlap = nms_max_overlap
+    def initialize(self, dataset_name, seq_name):
+        super(DeepSort, self).initialize()
 
-        self.max_cosine_distance = max_cosine_distance
-        self.nn_budget = nn_budget
+        if dataset_name == "MOT16":
+            self.min_confidence = 0.3
+            self.min_detection_height = 0
+            self.nms_max_overlap = 1.0
+            self.max_cosine_distance = 0.2
+            self.nn_budget = 100
+        else:
+            self.min_confidence = 0.8
+            self.min_detection_height = 0
+            self.nms_max_overlap = 1.0
+            self.max_cosine_distance = 0.2
+            self.nn_budget = None
+
         self.metric = nn_matching.NearestNeighborDistanceMetric(
             "cosine", self.max_cosine_distance, self.nn_budget
         )
-
-    def initialize(self):
-        super(DeepSort, self).initialize()
         self.tracker = Tracker(self.metric)
 
     def track(self, img_path, dets):

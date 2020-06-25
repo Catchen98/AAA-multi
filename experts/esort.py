@@ -11,7 +11,7 @@ class ESort(Expert):
     def __init__(self):
         super(ESort, self).__init__("Sort")
 
-    def initialize(self):
+    def initialize(self, dataset_name, seq_name):
         super(ESort, self).initialize()
         self.tracker = Sort()
         KalmanBoxTracker.count = 0

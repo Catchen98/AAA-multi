@@ -7,7 +7,7 @@ def get_expert_by_name(name):
     if name == "DAN":
         from experts.dan import DAN as Tracker
 
-        tracker = Tracker("weights/DAN/sst300_0712_83000.pth", (0, 0, 4, 0, 3, 3))
+        tracker = Tracker("weights/DAN/sst300_0712_83000.pth")
     elif name == "DeepMOT":
         from experts.deepmot import DeepMOT as Tracker
 
@@ -19,9 +19,7 @@ def get_expert_by_name(name):
     elif name == "DeepSort":
         from experts.deepsort import DeepSort as Tracker
 
-        tracker = Tracker(
-            "weights/DeepSort/mars-small128.pb", min_confidence=0.3, nn_budget=100
-        )
+        tracker = Tracker("weights/DeepSort/mars-small128.pb")
     elif name == "IOU":
         from experts.iou import IOU as Tracker
 
@@ -67,7 +65,7 @@ class Expert:
     def __init__(self, name, *args, **kwargs):
         self.name = name
 
-    def initialize(self):
+    def initialize(self, *args, **kwargs):
         self.history = []
         self.frame_idx = -1
 
@@ -75,8 +73,8 @@ class Expert:
         self.frame_idx += 1
 
     @do_not_print
-    def track_seq(self, seq):
-        self.initialize()
+    def track_seq(self, dataset_name, seq):
+        self.initialize(dataset_name, seq.name)
 
         for frame_idx, (img_path, dets) in enumerate(seq):
             results = self.track(img_path, dets)

@@ -7,36 +7,77 @@ sys.path.append("external/iou-tracker")
 from util import iou, nms
 
 
+visdrone_classes = {
+    "car": 4,
+    "bus": 9,
+    "truck": 6,
+    "pedestrian": 1,
+    "van": 5,
+}
+
+
 class IOU(Expert):
-    def __init__(
-        self,
-        nms_overlap_thresh=None,
-        nms_per_class=True,
-        with_classes=False,
-        sigma_l=0,
-        sigma_h=0.5,
-        sigma_iou=0.5,
-        t_min=2,
-    ):
+    def __init__(self):
         super(IOU, self).__init__("IOU")
-        self.nms_overlap_thresh = nms_overlap_thresh
-        self.nms_per_class = nms_per_class
-        self.with_classes = with_classes
-        self.sigma_l = sigma_l
-        self.sigma_h = sigma_h
-        self.sigma_iou = sigma_iou
-        self.t_min = t_min
 
-        self.visdrone_classes = {
-            "car": 4,
-            "bus": 9,
-            "truck": 6,
-            "pedestrian": 1,
-            "van": 5,
-        }
-
-    def initialize(self):
+    def initialize(self, dataset_name, seq_name):
         super(IOU, self).initialize()
+
+        if dataset_name == "MOT16" and "FRCNN" in seq_name:
+            self.sigma_l = 0.0
+            self.sigma_h = 0.9
+            self.sigma_iou = 0.3
+            self.t_min = 5
+        elif dataset_name == "MOT17" and "DPM" in seq_name:
+            self.sigma_l = -0.5
+            self.sigma_h = 0.5
+            self.sigma_iou = 0.4
+            self.t_min = 4
+        elif dataset_name == "MOT17" and "FRCNN" in seq_name:
+            self.sigma_l = 0.0
+            self.sigma_h = 0.9
+            self.sigma_iou = 0.3
+            self.t_min = 3
+        elif dataset_name == "MOT17" and "SDP" in seq_name:
+            self.sigma_l = 0.4
+            self.sigma_h = 0.5
+            self.sigma_iou = 0.2
+            self.t_min = 2
+        elif dataset_name == "DETRAC" and "R-CNN" in seq_name:
+            self.sigma_l = 0
+            self.sigma_h = 0.7
+            self.sigma_iou = 0.5
+            self.t_min = 2
+        elif dataset_name == "DETRAC" and "ACF" in seq_name:
+            self.sigma_l = 0
+            self.sigma_h = 0.3
+            self.sigma_iou = 0.5
+            self.t_min = 3
+        elif dataset_name == "DETRAC" and "CompACT" in seq_name:
+            self.sigma_l = 0
+            self.sigma_h = 0.2
+            self.sigma_iou = 0.4
+            self.t_min = 2
+        elif dataset_name == "DETRAC" and "EB" in seq_name:
+            self.sigma_l = 0
+            self.sigma_h = 0.8
+            self.sigma_iou = 0.5
+            self.t_min = 2
+        elif dataset_name == "CVPR19":
+            self.sigma_l = 0.3
+            self.sigma_h = 0.8
+            self.sigma_iou = 0.4
+            self.t_min = 5
+        else:
+            self.sigma_l = 0
+            self.sigma_h = 0.5
+            self.sigma_iou = 0.5
+            self.t_min = 2
+
+        self.nms_overlap_thresh = None
+        self.nms_per_class = False
+        self.with_classes = False
+
         self.tracks_active = []
         self.tracks_finished = []
 

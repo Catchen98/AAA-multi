@@ -9,13 +9,14 @@ from tracker.mot_tracker import OnlineTracker
 
 
 class MOTDT(Expert):
-    def __init__(self, min_height=0, min_det_score=-np.inf):
+    def __init__(self):
         super(MOTDT, self).__init__("MOTDT")
-        self.min_height = min_height
-        self.min_det_score = min_det_score
 
-    def initialize(self):
+    def initialize(self, dataset_name, seq_name):
         super(MOTDT, self).initialize()
+
+        self.min_height = 0
+        self.min_det_score = -np.inf
         self.tracker = OnlineTracker()
 
     def track(self, img_path, dets):

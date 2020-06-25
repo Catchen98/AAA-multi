@@ -117,7 +117,7 @@ class Tracktor(Expert):
             [ToTensor(), Normalize(normalize_mean, normalize_std)]
         )
 
-    def initialize(self):
+    def initialize(self, dataset_name, seq_name):
         super(Tracktor, self).initialize()
         self.tracker.reset()
 

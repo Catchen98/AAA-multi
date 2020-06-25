@@ -113,7 +113,7 @@ class DeepMOT(Expert):
         # tracktor
         self.tracker = Tracker(obj_detect, None, tracktor["tracker"])
 
-    def initialize(self):
+    def initialize(self, dataset_name, seq_name):
         super(DeepMOT, self).initialize()
         self.tracker.reset()
 
