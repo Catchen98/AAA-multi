@@ -1,5 +1,5 @@
 import numpy as np
-from utils import do_not_print
+from util import do_not_print
 
 
 @do_not_print

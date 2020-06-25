@@ -1,6 +1,6 @@
 import os
 import sys
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stdout
 
 
 @contextmanager
@@ -24,7 +24,9 @@ def stdchannel_redirected(stdchannel, dest_filename):
 
 def do_not_print(func):
     def wrapper(*args, **kwargs):
-        with stdchannel_redirected(sys.stderr, os.devnull):
+        with stdchannel_redirected(sys.stderr, os.devnull), redirect_stdout(
+            open(os.devnull, "w")
+        ):
             return func(*args, **kwargs)
 
     return wrapper

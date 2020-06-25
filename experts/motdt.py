@@ -31,6 +31,7 @@ class MOTDT(Expert):
 
     def preprocess(self, img_path, dets):
         im = Image.open(img_path)  # rgb
+        im = np.array(im)
         im = im[:, :, ::-1]  # bgr
 
         if dets is None:

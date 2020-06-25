@@ -3,7 +3,7 @@ from expert import get_expert_by_name
 
 
 dataset = MOT("/home/heonsong/Disk2/Dataset/MOT/MOT15")
-tracker = get_expert_by_name("DeepMOT")
+tracker = get_expert_by_name("MOTDT")
 
 for seq in dataset:
     print(f"Start {seq.name}")
