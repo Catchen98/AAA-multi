@@ -1,7 +1,7 @@
 import sys
 import cv2
 
-from experts.expert import Expert
+from expert import Expert
 
 sys.path.append("external/SST")
 from tracker import SSTTracker, TrackerConfig

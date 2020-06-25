@@ -136,6 +136,7 @@ external/
 
 # models
 data/
+weights/
 
 # result
 output/

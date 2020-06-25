@@ -7,7 +7,7 @@ import yaml
 import torch
 from torchvision.transforms import Compose, Normalize, ToTensor
 
-from experts.expert import Expert
+from expert import Expert
 
 sys.path.append("external/deepmot/test_tracktor")
 from src.frcnn.frcnn.model import test
@@ -26,7 +26,7 @@ class DeepMOT(Expert):
         )
 
         with open(tracktor_config_path) as config_file:
-            tracktor = yaml.full_load(config_file)["tracktor"]
+            tracktor = yaml.load(config_file)["tracktor"]
 
         # set all seeds
         torch.manual_seed(tracktor["seed"])

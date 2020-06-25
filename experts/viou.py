@@ -2,7 +2,7 @@ import sys
 import numpy as np
 import cv2
 
-from experts.expert import Expert
+from expert import Expert
 
 sys.path.append("external/iou-tracker")
 from viou_tracker import associate

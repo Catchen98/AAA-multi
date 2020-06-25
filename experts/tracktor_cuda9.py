@@ -7,11 +7,11 @@ import yaml
 import torch
 from torchvision.transforms import Compose, Normalize, ToTensor
 
-from experts.expert import Expert
+from expert import Expert
 
-sys.path.append("external/tracking_wo_bnw")
-sys.path.append("external/tracking_wo_bnw/src/frcnn")
-sys.path.append("external/tracking_wo_bnw/src/fpn")
+sys.path.append("external/tracking_wo_bnw_cuda9")
+sys.path.append("external/tracking_wo_bnw_cuda9/src/frcnn")
+sys.path.append("external/tracking_wo_bnw_cuda9/src/fpn")
 from src.tracktor.resnet import resnet50
 from src.tracktor.tracker import Tracker
 from src.tracktor.oracle_tracker import OracleTracker
@@ -27,16 +27,16 @@ class Tracktor(Expert):
         reid_network_config_path,
         obj_detect_config_path,
     ):
-        super(Tracktor, self).__init__("Tracktor")
+        super(Tracktor, self).__init__("Tracktor_cuda9")
 
         with open(tracktor_config_path) as config_file:
-            tracktor = yaml.unsafe_load(config_file)["tracktor"]
+            tracktor = yaml.load(config_file)["tracktor"]
 
         with open(reid_network_config_path) as config_file:
-            siamese = yaml.unsafe_load(config_file)["siamese"]
+            siamese = yaml.load(config_file)["siamese"]
 
         with open(obj_detect_config_path) as config_file:
-            _config = yaml.unsafe_load(config_file)
+            _config = yaml.load(config_file)
 
         # set all seeds
         torch.manual_seed(tracktor["seed"])

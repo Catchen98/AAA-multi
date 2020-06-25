@@ -1,19 +1,21 @@
 import sys
-import numpy as np
+
 from PIL import Image
-import cv2
-import yaml
+
+from expert import Expert
+
+import numpy as np
 
 import torch
-from torchvision.transforms import Compose, Normalize, ToTensor
+import yaml
 
-from experts.expert import Expert
+from torchvision.transforms import ToTensor
 
 sys.path.append("external/tracking_wo_bnw")
-from src.tracktor.oracle_tracker import OracleTracker
 from src.tracktor.frcnn_fpn import FRCNN_FPN
-from src.tracktor.tracker import Tracker
+from src.tracktor.oracle_tracker import OracleTracker
 from src.tracktor.reid.resnet import resnet50
+from src.tracktor.tracker import Tracker
 
 
 class Tracktor(Expert):
@@ -102,8 +104,12 @@ class Tracktor(Expert):
         sample = {}
         sample["img"] = img.unsqueeze(0)
         if dets is not None:
-            sample["dets"] = torch.FloatTensor([det[:4] for det in dets]).unsqueeze(0)
+            bb = np.zeros((len(dets), 5), dtype=np.float32)
+            bb[:, 0:2] = dets[:, 2:4] - 1
+            bb[:, 2:4] = dets[:, 2:4] + dets[:, 4:6] - 1
+            bb[:, 4] = dets[:, 6]
+            sample["dets"] = torch.FloatTensor([det[:4] for det in bb]).unsqueeze(0)
         else:
-            sample["dets"] = torch.tensor([])
+            sample["dets"] = torch.FloatTensor([]).unsqueeze(0)
         sample["img_path"] = img_path
         return sample

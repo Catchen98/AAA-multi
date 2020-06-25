@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 
-from experts.expert import Expert
+from expert import Expert
 
 sys.path.append("external/iou-tracker")
 from util import iou, nms
