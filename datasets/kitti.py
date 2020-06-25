@@ -123,13 +123,16 @@ class KITTI:
                     KITTIDataReader(sequence_name, image_dir, det_path)
                 )
 
+        self.all_sequence_names = sum(self.sequence_names.values(), [])
+        self.all_sequences = sum(self.sequences.values(), [])
+
         self.c = 0
 
     def __len__(self):
-        return len(self.sequence_names["test"])
+        return len(self.all_sequences)
 
     def __getitem__(self, item):
-        return self.sequences["test"][item]
+        return self.all_sequences[item]
 
     def __iter__(self):
         return self

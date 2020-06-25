@@ -14,7 +14,7 @@ def main(expert_name):
         for seq in dataset:
             print(f"Start {seq.name}")
             results = tracker.track_seq(dataset_name, seq)
-            seq.write_results(results, f"output/{expert_name}")
+            seq.write_results(results, f"output/{dataset_name}/{expert_name}")
 
 
 if __name__ == "__main__":
