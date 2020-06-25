@@ -88,13 +88,13 @@
     ```sh
     mkdir external
     cd external
-    git clone https://gitlab.inria.fr/yixu/deepmot.git
     git clone https://github.com/shijieS/SST.git
-    git clone https://github.com/bochinski/iou-tracker.git
-    git clone --recurse-submodules --branch iccv_19 https://github.com/songheony/tracking_wo_bnw.git tracking_wo_bnw_cuda9
+    git clone https://gitlab.inria.fr/yixu/deepmot.git
     git clone https://github.com/nwojke/deep_sort.git
-    git clone https://github.com/abewley/sort.git
+    git clone https://github.com/bochinski/iou-tracker.git
     git clone https://github.com/longcw/MOTDT.git
+    git clone https://github.com/abewley/sort.git
+    git clone --recurse-submodules --branch iccv_19 https://github.com/songheony/tracking_wo_bnw.git tracking_wo_bnw_cuda9
     ```
 
 2. Install necessary libraries with Anaconda 3

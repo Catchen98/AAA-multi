@@ -26,10 +26,10 @@
     mkdir external
     cd external
     git clone https://github.com/shijieS/SST.git
-    git clone https://github.com/bochinski/iou-tracker.git
-    git clone --recurse-submodules https://github.com/phil-bergmann/tracking_wo_bnw.git
     git clone https://github.com/nwojke/deep_sort.git
+    git clone https://github.com/bochinski/iou-tracker.git
     git clone https://github.com/abewley/sort.git
+    git clone --recurse-submodules https://github.com/phil-bergmann/tracking_wo_bnw.git
     ```
 
 2. Install necessary libraries with Anaconda 3
