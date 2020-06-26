@@ -77,7 +77,7 @@ class MOT:
         self.sequences = {"train": [], "test": []}
 
         for data_type in self.sequence_names.keys():
-            main_dir = os.path.join(self.root_dir, "test")
+            main_dir = os.path.join(self.root_dir, data_type)
 
             self.sequence_names[data_type] = [
                 name
