@@ -5,11 +5,9 @@
 * [DAN](https://arxiv.org/abs/1810.11780)[<https://github.com/shijieS/SST>]
 * [DeepMOT](https://arxiv.org/abs/1906.06618)[<https://gitlab.inria.fr/yixu/deepmot>]
 * [DeepSORT](https://arxiv.org/abs/1812.00442)[<https://github.com/nwojke/deep_sort>]
-* [IOU](https://ieeexplore.ieee.org/document/8078516)[<https://github.com/bochinski/iou-tracker>]
 * [MOTDT](https://arxiv.org/abs/1809.04427)[<https://github.com/longcw/MOTDT>]
 * [SORT](https://arxiv.org/abs/1602.00763)[<https://github.com/abewley/sort>]
 * [Tracktor](https://arxiv.org/abs/1903.05625)[<https://github.com/phil-bergmann/tracking_wo_bnw>]
-* [VIOU](https://ieeexplore.ieee.org/document/8639144)[<https://github.com/bochinski/iou-tracker>]
 
 ## Datasets
 
@@ -91,7 +89,6 @@
     git clone https://github.com/shijieS/SST.git
     git clone https://gitlab.inria.fr/yixu/deepmot.git
     git clone https://github.com/nwojke/deep_sort.git
-    git clone https://github.com/bochinski/iou-tracker.git
     git clone https://github.com/longcw/MOTDT.git
     git clone https://github.com/abewley/sort.git
     git clone --recurse-submodules --branch iccv_19 https://github.com/songheony/tracking_wo_bnw.git tracking_wo_bnw_cuda9

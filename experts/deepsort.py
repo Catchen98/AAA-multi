@@ -62,7 +62,7 @@ class DeepSort(Expert):
 
     def preprocess(self, img_path, dets):
         if dets is None:
-            return []
+            dets = dets = np.empty((0, 6))
         bgr_image = cv2.imread(img_path, cv2.IMREAD_COLOR)
         features = self.encoder(bgr_image, dets[:, 2:6].copy())
         detections_out = [np.r_[(row, feature)] for row, feature in zip(dets, features)]

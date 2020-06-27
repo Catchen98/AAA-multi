@@ -86,9 +86,7 @@ class KITTIDataReader:
         else:
             raise StopIteration()
 
-    def write_results(self, results, output_dir):
-        os.makedirs(output_dir, exist_ok=True)
-
+    def write_results(self, results, output_dir, filename=None):
         data = np.zeros((len(results), 10))
         data[:, :6] = results
         data[:, 6:] = -1
@@ -96,7 +94,9 @@ class KITTIDataReader:
         df = pd.DataFrame(data,)
 
         os.makedirs(output_dir, exist_ok=True)
-        file_path = os.path.join(output_dir, f"{self.name}.txt")
+        if filename is None:
+            filename = f"{self.name}.txt"
+        file_path = os.path.join(output_dir, filename)
         df.to_csv(file_path, index=False, header=False)
 
 

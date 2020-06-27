@@ -41,13 +41,13 @@ class DAN(Expert):
             return []
 
         img, dets, h, w = self.preprocess(img_path, dets)
-        self.tracker.update(img, dets[:, 2:6], False, self.frame_idx + 1)
+        self.tracker.update(img, dets[:, 2:6], False, self.frame_idx)
 
         results = []
         for t in self.tracker.tracks:
             n = t.nodes[-1]
             if t.age == 1:
-                b = n.get_box(self.tracker.frame_index, self.tracker.recorder)
+                b = n.get_box(self.tracker.frame_index - 1, self.tracker.recorder)
                 results.append([t.id, b[0] * w, b[1] * h, b[2] * w, b[3] * h])
         return results
 
