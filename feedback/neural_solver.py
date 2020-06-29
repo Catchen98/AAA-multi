@@ -94,6 +94,7 @@ class NeuralSolver:
         preprocessing_cfg_path,
         prepr_w_tracktor,
     ):
+        self.name = "NeuralSolver"
         with open(tracking_cfg_path) as config_file:
             config = yaml.load(config_file)
 
@@ -139,40 +140,42 @@ class NeuralSolver:
 
         self.transforms = ToTensor()
 
-    def track(self, seq_name, img_paths, dets):
-        det_df, h, w = self.preprocess(seq_name, img_paths, dets)
-        print(det_df)
+    def track(self, seq_info, img_paths, dets):
+        det_df = self.preprocess(seq_info, img_paths, dets)
         dataset = MOTGraphDataset(
             self.model.hparams["dataset_params"],
-            seq_name,
+            seq_info["seq_name"],
             img_paths,
             det_df,
-            h,
-            w,
+            seq_info["frame_height"],
+            seq_info["frame_width"],
             self.model.cnn_model,
         )
         final_out = self.model.track_seq(dataset)
         return final_out.to_numpy()[:, :6]
 
-    def preprocess(self, seq_name, img_paths, dets):
+    def preprocess(self, seq_info, img_paths, dets):
         self.preprocessor.reset()
         if self.prepr_w_tracktor:
-            self.preprocessor.do_align = (
-                self.prepr_params["tracker"]["do_align"] and MOV_CAMERA_DICT[seq_name]
-            )
+            if seq_info["seq_name"] in MOV_CAMERA_DICT.keys():
+                self.preprocessor.do_align = (
+                    self.prepr_params["tracker"]["do_align"]
+                    and MOV_CAMERA_DICT[seq_info["seq_name"]]
+                )
 
         for img_path, det in zip(img_paths, dets):
             img = Image.open(img_path).convert("RGB")
-            w, h = img.size
             img = self.transforms(img)
 
             sample = {}
             sample["img"] = img.unsqueeze(0)
-            bb = np.zeros((len(det), 5), dtype=np.float32)
-            if len(bb) > 0:
+            if det is not None and len(det) > 0:
+                bb = np.zeros((len(det), 5), dtype=np.float32)
                 bb[:, 0:2] = det[:, 2:4] - 1
                 bb[:, 2:4] = det[:, 2:4] + det[:, 4:6] - 1
-            sample["dets"] = torch.FloatTensor([d[:4] for d in bb]).unsqueeze(0)
+                sample["dets"] = torch.FloatTensor([d[:4] for d in bb]).unsqueeze(0)
+            else:
+                sample["dets"] = torch.FloatTensor([]).unsqueeze(0)
             sample["img_path"] = img_path
 
             with torch.no_grad():
@@ -206,9 +209,9 @@ class NeuralSolver:
             final_results = pd.concat(self.preprocessor.results_dfs)
             final_results["bb_left"] += 1  # MOT bbox annotations are 1 -based
             final_results["bb_top"] += 1  # MOT bbox annotations are 1 -based
-            final_results["id"] = -1
+            # final_results["id"] = -1
             det_df = final_results[
                 ["frame", "id", "bb_left", "bb_top", "bb_width", "bb_height", "conf"]
             ]
 
-        return det_df, h, w
+        return det_df

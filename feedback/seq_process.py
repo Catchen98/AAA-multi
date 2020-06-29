@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 
 sys.path.append("external/mot_neural_solver/src")
-from mot_neural_solver.data.seq_processing.MOT15loader import FPS_DICT as MOT15_FPS_DICT
 from mot_neural_solver.data.seq_processing.MOT17loader import (
     MOV_CAMERA_DICT as MOT17_MOV_CAMERA_DICT,
 )
@@ -24,14 +23,10 @@ class DataFrameWSeqInfo(pd.DataFrame):
 
 
 class MOTSeqProcessor:
-    def __init__(
-        self, seq_name, img_paths, det_df, h, w,
-    ):
-        self.seq_name = seq_name
+    def __init__(self, img_paths, det_df, seq_info):
+        self.seq_info = seq_info
         self.img_paths = img_paths
         self.det_df = det_df
-        self.h = h
-        self.w = w
 
     def _ensure_boxes_in_frame(self):
         initial_bb_top = self.det_df["bb_top"].values.copy()
@@ -76,13 +71,11 @@ class MOTSeqProcessor:
             lambda row: self.img_paths[int(row.frame) - 1], axis=1
         )
 
-        if self.seq_name in MOT15_FPS_DICT.keys():
-            fps = MOT15_FPS_DICT[self.seq_name]
         seq_info_dict = {
-            "fps": fps,
-            "mov_camera": MOV_CAMERA_DICT[self.seq_name],
-            "frame_height": self.h,
-            "frame_width": self.w,
+            "fps": self.seq_info["fps"],
+            "mov_camera": MOV_CAMERA_DICT[self.seq_info["seq_name"]],
+            "frame_height": self.seq_info["frame_height"],
+            "frame_width": self.seq_info["frame_width"],
             "is_gt": False,
         }
 
@@ -95,7 +88,7 @@ class MOTSeqProcessor:
         self.det_df.seq_info_dict = seq_info_dict
 
         # Some further processing
-        if self.seq_name in MOT15_MOV_CAMERA_DICT.keys():
+        if self.seq_info["seq_name"] in MOT15_MOV_CAMERA_DICT.keys():
             self._ensure_boxes_in_frame()
 
         # Add some additional box measurements that might be used for graph construction

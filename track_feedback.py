@@ -3,10 +3,10 @@ from paths import DATASET_PATH, OUTPUT_PATH
 from feedback.neural_solver import NeuralSolver
 
 
-def main(expert_name):
+def main():
     datasets = {
-        "MOT15": MOT(DATASET_PATH["MOT15"]),
-        # "MOT16": MOT(DATASET_PATH["MOT16"]),
+        # "MOT15": MOT(DATASET_PATH["MOT15"]),
+        "MOT16": MOT(DATASET_PATH["MOT16"]),
         # "MOT17": MOT(DATASET_PATH["MOT17"]),
     }
     tracker = NeuralSolver(
@@ -19,12 +19,12 @@ def main(expert_name):
     )
 
     for dataset_name, dataset in datasets.items():
-        dataset_dir = OUTPUT_PATH / f"{dataset_name}/{expert_name}"
+        dataset_dir = OUTPUT_PATH / f"{dataset_name}/NueralSolver"
         for seq in dataset:
-            if (dataset_dir / f"{seq.name}.txt").exists():
-                print(f"Pass {seq.name}")
+            if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
+                print(f"Pass {seq.seq_info['seq_name']}")
             else:
-                print(f"Start {seq.name}")
+                print(f"Start {seq.seq_info['seq_name']}")
                 img_paths = []
                 dets = []
                 for frame_idx, (img_path, det) in enumerate(seq):
@@ -34,17 +34,9 @@ def main(expert_name):
                     else:
                         dets.append(det)
 
-                results = tracker.track(seq.name, img_paths, dets)
+                results = tracker.track(seq.seq_info, img_paths, dets)
                 seq.write_results(results, dataset_dir)
 
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Run experts")
-    parser.add_argument(
-        "-n", "--name", type=str, help="The name of the expert",
-    )
-
-    args = parser.parse_args()
-    main(args.name)
+    main()

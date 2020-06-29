@@ -5,8 +5,8 @@ from paths import DATASET_PATH, OUTPUT_PATH
 
 def main(expert_name):
     datasets = {
-        "MOT15": MOT(DATASET_PATH["MOT15"]),
-        # "MOT16": MOT(DATASET_PATH["MOT16"]),
+        # "MOT15": MOT(DATASET_PATH["MOT15"]),
+        "MOT16": MOT(DATASET_PATH["MOT16"]),
         # "MOT17": MOT(DATASET_PATH["MOT17"]),
     }
     tracker = get_expert_by_name(expert_name)
@@ -14,11 +14,11 @@ def main(expert_name):
     for dataset_name, dataset in datasets.items():
         dataset_dir = OUTPUT_PATH / f"{dataset_name}/{expert_name}"
         for seq in dataset:
-            if (dataset_dir / f"{seq.name}.txt").exists():
-                print(f"Pass {seq.name}")
+            if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
+                print(f"Pass {seq.seq_info['seq_name']}")
             else:
-                print(f"Start {seq.name}")
-                results = tracker.track_seq(dataset_name, seq)
+                print(f"Start {seq.seq_info['seq_name']}")
+                results = tracker.track_seq(seq)
                 seq.write_results(results, dataset_dir)
 
 

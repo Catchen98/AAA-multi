@@ -4,13 +4,16 @@ https://github.com/shijieS/SST
 
 
 import os
+import configparser
 import numpy as np
 import pandas as pd
 
 
 class MOTDataReader:
-    def __init__(self, name, image_folder, detection_file_name, min_confidence=None):
-        self.name = name
+    def __init__(
+        self, seq_info, image_folder, detection_file_name, min_confidence=None
+    ):
+        self.seq_info = seq_info
         self.image_folder = image_folder
         self.detection_file_name = detection_file_name
         self.image_format = os.path.join(self.image_folder, "{0:06d}.jpg")
@@ -65,7 +68,7 @@ class MOTDataReader:
 
         os.makedirs(output_dir, exist_ok=True)
         if filename is None:
-            filename = f"{self.name}.txt"
+            filename = f"{self.seq_info['seq_name']}.txt"
         file_path = os.path.join(output_dir, filename)
         df.to_csv(file_path, index=False, header=False)
 
@@ -89,8 +92,24 @@ class MOT:
             for sequence_name in self.sequence_names[data_type]:
                 image_dir = os.path.join(main_dir, sequence_name, "img1")
                 det_path = os.path.join(main_dir, sequence_name, "det", "det.txt")
+                seqinfo_path = os.path.join(main_dir, sequence_name, "seqinfo.ini")
+                if os.path.exists(seqinfo_path):
+                    config = configparser.ConfigParser()
+                    config.read(seqinfo_path)
+                    seq_info = {
+                        "dataset_name": os.path.basename(self.root_dir),
+                        "seq_name": sequence_name,
+                        "fps": config.get("Sequence", "frameRate"),
+                        "frame_width": config.get("Sequence", "imWidth"),
+                        "frame_height": config.get("Sequence", "imHeight"),
+                    }
+                else:
+                    seq_info = {
+                        "dataset_name": os.path.basename(self.root_dir),
+                        "seq_name": sequence_name,
+                    }
                 self.sequences[data_type].append(
-                    MOTDataReader(sequence_name, image_dir, det_path)
+                    MOTDataReader(seq_info, image_dir, det_path)
                 )
 
         self.all_sequence_names = sum(self.sequence_names.values(), [])

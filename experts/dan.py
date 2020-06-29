@@ -13,8 +13,10 @@ class DAN(Expert):
         super(DAN, self).__init__("DAN")
         self.model_path = model_path
 
-    def initialize(self, dataset_name, seq_name):
-        super(DAN, self).initialize()
+    def initialize(self, seq_info):
+        super(DAN, self).initialize(seq_info)
+        dataset_name = seq_info["dataset_name"]
+        seq_name = seq_info["seq_name"]
 
         if dataset_name == "MOT15" and seq_name == "AVG-TownCentre":
             self.choice = (4, 0, 4, 4, 5, 4)

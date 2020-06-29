@@ -75,8 +75,8 @@ class Tracktor(Expert):
 
         self.transforms = ToTensor()
 
-    def initialize(self, dataset_name, seq_name):
-        super(Tracktor, self).initialize()
+    def initialize(self, seq_info):
+        super(Tracktor, self).initialize(seq_info)
         self.tracker.reset()
 
     def track(self, img_path, dets):

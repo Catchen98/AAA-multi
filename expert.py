@@ -65,7 +65,7 @@ class Expert:
     def __init__(self, name, *args, **kwargs):
         self.name = name
 
-    def initialize(self, *args, **kwargs):
+    def initialize(self, seq_info):
         self.history = []
         self.frame_idx = -1
 
@@ -73,8 +73,8 @@ class Expert:
         self.frame_idx += 1
 
     @do_not_print
-    def track_seq(self, dataset_name, seq):
-        self.initialize(dataset_name, seq.name)
+    def track_seq(self, seq):
+        self.initialize(seq.seq_info)
 
         for frame_idx, (img_path, dets) in enumerate(seq):
             results = self.track(img_path, dets)

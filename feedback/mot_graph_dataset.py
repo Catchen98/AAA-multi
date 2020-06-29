@@ -6,17 +6,16 @@ from mot_neural_solver.data.mot_graph import MOTGraph
 
 
 class MOTGraphDataset:
-    def __init__(
-        self, dataset_params, seq_name, img_paths, det_df, h, w, cnn_model=None
-    ):
+    def __init__(self, dataset_params, img_paths, det_df, seq_info, cnn_model=None):
         self.dataset_params = dataset_params
         self.cnn_model = cnn_model
+        self.seq_info = seq_info
 
-        self.seq = MOTSeqProcessor(seq_name, img_paths, det_df, h, w)
+        self.seq = MOTSeqProcessor(img_paths, det_df, seq_info)
         self.seq_det_df = self.seq.load_or_process_detections()
-        self.seq_det_dfs = {seq_name: self.seq_det_df}
-        self.seq_info_dicts = {seq_name: self.seq_det_df.seq_info_dict}
-        self.seq_names = [seq_name]
+        self.seq_det_dfs = {seq_info["seq_name"]: self.seq_det_df}
+        self.seq_info_dicts = {seq_info["seq_name"]: self.seq_det_df.seq_info_dict}
+        self.seq_names = [seq_info["seq_name"]]
 
         # Update each sequence's meatinfo with step sizes
         self._compute_seq_step_sizes()
