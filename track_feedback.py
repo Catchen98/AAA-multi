@@ -25,8 +25,6 @@ def main(expert_name):
                 print(f"Pass {seq.name}")
             else:
                 print(f"Start {seq.name}")
-                tracker.initialize(seq.name)
-
                 img_paths = []
                 dets = []
                 for frame_idx, (img_path, det) in enumerate(seq):
@@ -36,7 +34,7 @@ def main(expert_name):
                     else:
                         dets.append(det)
 
-                results = tracker.track(img_paths, dets)
+                results = tracker.track(seq.name, img_paths, dets)
                 seq.write_results(results, dataset_dir)
 
 

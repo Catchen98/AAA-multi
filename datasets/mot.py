@@ -59,7 +59,8 @@ class MOTDataReader:
     def write_results(self, results, output_dir, filename=None):
         data = np.zeros((len(results), 10))
         data[:, :6] = results
-        data[:, 6:] = -1
+        data[:, 6:] = 1
+        data[:, 7:] = -1
         df = pd.DataFrame(data,)
 
         os.makedirs(output_dir, exist_ok=True)

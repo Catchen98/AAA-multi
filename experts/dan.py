@@ -16,20 +16,22 @@ class DAN(Expert):
     def initialize(self, dataset_name, seq_name):
         super(DAN, self).initialize()
 
-        if dataset_name == "MOT15":
-            choice = (0, 0, 4, 4, 5, 4)
+        if dataset_name == "MOT15" and seq_name == "AVG-TownCentre":
+            self.choice = (4, 0, 4, 4, 5, 4)
+            init_test_mot15()
+        elif dataset_name == "MOT15":
+            self.choice = (0, 0, 4, 4, 5, 4)
             init_test_mot15()
         elif dataset_name == "MOT17":
-            choice = (0, 0, 4, 0, 3, 3)
+            self.choice = (0, 0, 4, 0, 3, 3)
             init_test_mot17()
         elif dataset_name == "DETRAC":
-            choice = TrackerConfig.get_ua_choice()
+            self.choice = TrackerConfig.get_ua_choice()
             init_test_ua()
         else:
-            choice = (0, 0, 4, 0, 3, 3)
+            self.choice = (0, 0, 4, 0, 3, 3)
             init_test_mot17()
 
-        self.choice = choice
         TrackerConfig.set_configure(self.choice)
         config["resume"] = self.model_path
         self.tracker = SSTTracker()
