@@ -17,11 +17,11 @@ import numpy as np
 
 
 class DETRACDataReader:
-    def __init__(self, name, image_folder, gt_file_name, ignore_file_name):
+    def __init__(self, seq_info, image_folder, gt_file_name, ignore_file_name):
         datatype = {0: int, 1: int, 2: float, 3: float, 4: float, 5: float}
         datatype_ignore = {0: float, 1: float, 2: float, 3: float}
 
-        self.name = name
+        self.seq_info = seq_info
         self.image_folder = image_folder
         self.gt_file_name = gt_file_name
         self.ignore_file_name = ignore_file_name
@@ -111,7 +111,7 @@ class DETRACDataReader:
 
         os.makedirs(output_dir, exist_ok=True)
         if filename is None:
-            filename = f"{self.name}.txt"
+            filename = f"{self.seq_info['seq_name']}.txt"
         file_path = os.path.join(output_dir, filename)
         df.to_csv(file_path, index=False, header=False)
 
@@ -146,9 +146,16 @@ class DETRAC:
                         det_dir, det_name, f"{sequence_basename}_Det_{det_name}.txt",
                     )
                     sequence_name = f"{sequence_basename}_Det_{det_name}"
+                    seq_info = {
+                        "dataset_name": os.path.basename(self.root_dir),
+                        "seq_name": sequence_name,
+                        "fps": 25,
+                        "frame_width": 960,
+                        "frame_height": 540,
+                    }
                     self.sequence_names[data_type].append(sequence_name)
                     self.sequences[data_type].append(
-                        DETRACDataReader(sequence_name, image_dir, det_path)
+                        DETRACDataReader(seq_info, image_dir, det_path)
                     )
 
         self.all_sequence_names = sum(self.sequence_names.values(), [])

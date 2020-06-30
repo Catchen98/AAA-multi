@@ -7,6 +7,33 @@ import os
 import configparser
 import numpy as np
 import pandas as pd
+from PIL import Image
+
+
+FPS_DICT = {
+    "Venice-2": 30,
+    "KITTI-17": 10,
+    "KITTI-13": 10,
+    "ETH-Pedcross2": 14,
+    "ETH-Bahnhof": 14,
+    "ETH-Sunnyday": 14,
+    "TUD-Campus": 25,
+    "TUD-Stadtmitte": 25,
+    "PETS09-S2L1": 7,
+    "ADL-Rundle-6": 30,
+    "ADL-Rundle-8": 30,
+    "Venice-1": 30,
+    "KITTI-19": 10,
+    "KITTI-16": 10,
+    "ADL-Rundle-3": 30,
+    "ADL-Rundle-1": 30,
+    "AVG-TownCentre": 2.5,
+    "ETH-Crossing": 14,
+    "ETH-Linthescher": 14,
+    "ETH-Jelmoli": 14,
+    "PETS09-S2L2": 7,
+    "TUD-Crossing": 25,
+}
 
 
 class MOTDataReader:
@@ -22,6 +49,7 @@ class MOTDataReader:
             self.detection = self.detection[self.detection[6] > min_confidence]
         self.detection_group = self.detection.groupby(0)
         self.detection_group_keys = list(self.detection_group.indices.keys())
+        self.seq_info["total_length"] = len(self.detection_group_keys)
 
         self.c = 0
 
@@ -99,14 +127,19 @@ class MOT:
                     seq_info = {
                         "dataset_name": os.path.basename(self.root_dir),
                         "seq_name": sequence_name,
-                        "fps": config.get("Sequence", "frameRate"),
-                        "frame_width": config.get("Sequence", "imWidth"),
-                        "frame_height": config.get("Sequence", "imHeight"),
+                        "fps": float(config.get("Sequence", "frameRate")),
+                        "frame_width": float(config.get("Sequence", "imWidth")),
+                        "frame_height": float(config.get("Sequence", "imHeight")),
                     }
                 else:
+                    img = Image.open(os.path.join(image_dir, "000001.jpg"))
+                    w, h = img.size
                     seq_info = {
                         "dataset_name": os.path.basename(self.root_dir),
                         "seq_name": sequence_name,
+                        "fps": FPS_DICT.get(sequence_name, None),
+                        "frame_width": w,
+                        "frame_height": h,
                     }
                 self.sequences[data_type].append(
                     MOTDataReader(seq_info, image_dir, det_path)

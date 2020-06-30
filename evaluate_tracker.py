@@ -70,4 +70,4 @@ if __name__ == "__main__":
     results = eval_trackers(args.trackers, args.datasets)
     for tracker, result in results.items():
         print(tracker)
-        print(result["MOT16"])
+        print(result["MOT17"])

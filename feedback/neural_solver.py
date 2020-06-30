@@ -116,6 +116,7 @@ class NeuralSolver:
             }
         )
         self.model.hparams["dataset_params"]["precomputed_embeddings"] = False
+        self.model.hparams["dataset_params"]["img_batch_size"] = 2500
 
         # preprocessor
         obj_detect = FRCNN_FPN(num_classes=2)
@@ -141,14 +142,14 @@ class NeuralSolver:
         self.transforms = ToTensor()
 
     def track(self, seq_info, img_paths, dets):
-        det_df = self.preprocess(seq_info, img_paths, dets)
+        det_df, w, h = self.preprocess(seq_info, img_paths, dets)
+        seq_info["frame_height"] = h
+        seq_info["frame_width"] = w
         dataset = MOTGraphDataset(
             self.model.hparams["dataset_params"],
-            seq_info["seq_name"],
             img_paths,
             det_df,
-            seq_info["frame_height"],
-            seq_info["frame_width"],
+            seq_info,
             self.model.cnn_model,
         )
         final_out = self.model.track_seq(dataset)
@@ -165,6 +166,7 @@ class NeuralSolver:
 
         for img_path, det in zip(img_paths, dets):
             img = Image.open(img_path).convert("RGB")
+            w, h = img.size
             img = self.transforms(img)
 
             sample = {}
@@ -214,4 +216,4 @@ class NeuralSolver:
                 ["frame", "id", "bb_left", "bb_top", "bb_width", "bb_height", "conf"]
             ]
 
-        return det_df
+        return det_df, w, h

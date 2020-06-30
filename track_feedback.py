@@ -5,9 +5,9 @@ from feedback.neural_solver import NeuralSolver
 
 def main():
     datasets = {
-        # "MOT15": MOT(DATASET_PATH["MOT15"]),
+        "MOT15": MOT(DATASET_PATH["MOT15"]),
         "MOT16": MOT(DATASET_PATH["MOT16"]),
-        # "MOT17": MOT(DATASET_PATH["MOT17"]),
+        "MOT17": MOT(DATASET_PATH["MOT17"]),
     }
     tracker = NeuralSolver(
         "weights/NeuralSolver/mot_mpnet_epoch_006.ckpt",

@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 
 sys.path.append("external/mot_neural_solver/src")
+from mot_neural_solver.data.seq_processing.MOT15loader import FPS_DICT
 from mot_neural_solver.data.seq_processing.MOT17loader import (
     MOV_CAMERA_DICT as MOT17_MOV_CAMERA_DICT,
 )
@@ -71,9 +72,14 @@ class MOTSeqProcessor:
             lambda row: self.img_paths[int(row.frame) - 1], axis=1
         )
 
+        if "fps" in self.seq_info.keys():
+            fps = self.seq_info["fps"]
+        else:
+            fps = FPS_DICT.get(self.seq_info["seq_name"], 30)
+
         seq_info_dict = {
-            "fps": self.seq_info["fps"],
-            "mov_camera": MOV_CAMERA_DICT[self.seq_info["seq_name"]],
+            "fps": fps,
+            "mov_camera": MOV_CAMERA_DICT.get(self.seq_info["seq_name"], False),
             "frame_height": self.seq_info["frame_height"],
             "frame_width": self.seq_info["frame_width"],
             "is_gt": False,

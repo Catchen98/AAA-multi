@@ -12,6 +12,12 @@ def get_expert_by_name(name):
         from experts.deepmot import DeepMOT as Tracker
 
         tracker = Tracker(
+            "weights/DeepMOT/trainedSOTtoMOT.pth", "weights/DeepMOT/DAN.pth",
+        )
+    elif name == "DeepMOT_cuda9":
+        from experts.deepmot_cuda9 import DeepMOT as Tracker
+
+        tracker = Tracker(
             "weights/DeepMOT/deepMOT_Tracktor.pth",
             "external/deepmot/test_tracktor/experiments/cfgs/tracktor_pub_reid.yaml",
             "external/deepmot/test_tracktor/output/fpn/res101/mot_2017_train/voc_init_iccv19/config.yaml",
@@ -53,6 +59,10 @@ def get_expert_by_name(name):
         )
     elif name == "VIOU":
         from experts.viou import VIOU as Tracker
+
+        tracker = Tracker()
+    elif name == "DeepTAMA":
+        from experts.deeptama import DeepTAMA as Tracker
 
         tracker = Tracker()
     else:

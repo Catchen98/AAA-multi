@@ -45,23 +45,30 @@ class DAN(Expert):
             return []
 
         img, dets, h, w = self.preprocess(img_path, dets)
-        self.tracker.update(img, dets[:, 2:6], False, self.frame_idx)
 
-        results = []
+        if len(dets) == 0:
+            return []
+
+        self.tracker.update(img, dets, False, self.frame_idx)
+
+        result = []
         for t in self.tracker.tracks:
             n = t.nodes[-1]
             if t.age == 1:
                 b = n.get_box(self.tracker.frame_index - 1, self.tracker.recorder)
-                results.append([t.id, b[0] * w, b[1] * h, b[2] * w, b[3] * h])
-        return results
+                result.append([t.id, b[0] * w, b[1] * h, b[2] * w, b[3] * h])
+
+        return result
 
     def preprocess(self, img_path, dets):
+        img = cv2.imread(img_path)
+        dets = dets[dets[:, 6] > 0.0]
+
         if len(dets) > config["max_object"]:
             dets = dets[: config["max_object"], :]
 
-        img = cv2.imread(img_path)
         h, w, _ = img.shape
-
         dets[:, [2, 4]] /= float(w)
         dets[:, [3, 5]] /= float(h)
-        return img, dets, h, w
+
+        return img, dets[:, 2:6], h, w

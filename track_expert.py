@@ -5,9 +5,9 @@ from paths import DATASET_PATH, OUTPUT_PATH
 
 def main(expert_name):
     datasets = {
-        # "MOT15": MOT(DATASET_PATH["MOT15"]),
+        "MOT15": MOT(DATASET_PATH["MOT15"]),
         "MOT16": MOT(DATASET_PATH["MOT16"]),
-        # "MOT17": MOT(DATASET_PATH["MOT17"]),
+        "MOT17": MOT(DATASET_PATH["MOT17"]),
     }
     tracker = get_expert_by_name(expert_name)
 
@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Run experts")
     parser.add_argument(
-        "-n", "--name", type=str, help="The name of the expert",
+        "-n", "--name", type=str, default="DeepMOT", help="The name of the expert"
     )
 
     args = parser.parse_args()

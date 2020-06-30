@@ -32,6 +32,8 @@ class DeepTAMA(Expert):
             det_thresh = 0.0
         elif seq_name == "MOT20-07" or seq_name == "MOT20-08":
             det_thresh = 0.2
+        else:
+            det_thresh = 0.1
 
         # Get tracking parameters
         _config = config(seq_info["fps"])
@@ -39,7 +41,7 @@ class DeepTAMA(Expert):
 
         _seq_info = [seq_info["frame_width"], seq_info["frame_height"], seq_info["fps"]]
 
-        self.track = track(
+        self._track = track(
             None,
             _seq_info,
             None,
@@ -52,15 +54,18 @@ class DeepTAMA(Expert):
     def track(self, img_path, dets):
         super(DeepTAMA, self).track(img_path, dets)
         bgr_img, dets = self.preprocess(img_path, dets)
-        self.track.track(bgr_img, dets, self.frame_idx)
+        self._track.track(bgr_img, dets, self.frame_idx)
 
         results = []
-        for trk in self.tracker.trk_result[-1]:
+        for trk in self._track.trk_result[-1]:
             results.append([trk[0], trk[1], trk[2], trk[3], trk[4]])
 
         return results
 
     def preprocess(self, img_path, dets):
         bgr_img = cv2.imread(img_path)
-        dets = dets[:, 2:7]
+        if dets is not None:
+            dets = dets[:, 1:8]
+        else:
+            dets = []
         return bgr_img, dets
