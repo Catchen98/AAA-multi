@@ -1,7 +1,12 @@
+import random
+
 import numpy as np
 import pandas as pd
 
 import networkx as nx
+
+SEED = 2
+random.seed(SEED)
 
 
 def overlap_ratio(rect1, rect2):
@@ -24,15 +29,21 @@ def overlap_ratio(rect1, rect2):
     return iou
 
 
+def weighted_random_choice(w):
+    pick = random.uniform(0, sum(w))
+    current = 0
+    for i, weight in enumerate(w):
+        current += weight
+        if current >= pick:
+            return i
+
+
 def match_id(prev_bboxes, curr_bboxes, threshold):
     """
     bbox shoud be [Number of box, 5] which is [id, x, y, w, h]
     """
 
-    if len(curr_bboxes) == 0:
-        return []
-
-    if prev_bboxes is None or len(prev_bboxes) == 0:
+    if len(curr_bboxes) == 0 or prev_bboxes is None or len(prev_bboxes) == 0:
         return []
 
     G = nx.DiGraph()
@@ -51,7 +62,7 @@ def match_id(prev_bboxes, curr_bboxes, threshold):
                 )
             )
 
-        edges.append(("s", f"p{prev_id}", {"weight": 0}))
+        edges.append(("s", f"p{prev_id}", {"capacity": 1, "weight": 0}))
 
     for i in range(len(curr_bboxes)):
         edges.append((f"c{i}", "t", {"weight": 0}))
@@ -69,7 +80,6 @@ def match_id(prev_bboxes, curr_bboxes, threshold):
                     curr_id = curr_bboxes[curr_idx, 0]
                     result.append((prev_id, curr_id))
                     break
-
     return result
 
 

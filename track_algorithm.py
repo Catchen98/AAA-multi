@@ -32,7 +32,7 @@ def write_results(data, output_dir, filename):
     df.to_csv(file_path, index=False, header=False)
 
 
-# @do_not_print
+@do_not_print
 def track_seq(experts_name, algorithm, seq):
     algorithm.initialize(seq.seq_info)
     experts_reader = [
@@ -88,7 +88,7 @@ def get_algorithm(experts_name):
     config = {
         "detector": {"type": "fixed", "duration": 30},
         "offline": {"reset": True},
-        "matching": {"threshold": 0.5, "time": "current"},
+        "matching": {"threshold": 0.3, "time": "previous"},
         "loss": {"type": "sum"},
     }
     algorithm = AAA(len(experts_name), config)
@@ -108,6 +108,8 @@ def main(experts_name):
         dataset_dir = OUTPUT_PATH / dataset_name / algorithm.name
 
         for seq in dataset:
+            # if seq.seq_info["seq_name"] == "PETS09-S2L1":
+            #     continue
             if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
                 print(f"Pass {seq.seq_info['seq_name']}")
             else:

@@ -1,5 +1,4 @@
 import sys
-import random
 import copy
 
 import numpy as np
@@ -9,7 +8,7 @@ import motmetrics as mm
 
 from algorithms.anchor_detector import FixedDetector
 from feedback.neural_solver import NeuralSolver
-from algorithms.aaa_util import match_id, convert_df
+from algorithms.aaa_util import match_id, convert_df, weighted_random_choice
 
 
 class WAADelayed:
@@ -85,14 +84,6 @@ class AAA:
         self.timer = -1
         self.experts_results = [[] for _ in range(self.n_experts)]
 
-    def _weighted_random_choice(self):
-        pick = random.uniform(0, sum(self.learner.w))
-        current = 0
-        for i, weight in enumerate(self.learner.w):
-            current += weight
-            if current >= pick:
-                return i
-
     def track(self, img_path, dets, results):
         self.frame_idx += 1
         self.timer += 1
@@ -134,6 +125,7 @@ class AAA:
                     [(x[0] - smallest_frame, x[1]) for x in df_feedback.index]
                 )
 
+                # calculate loss
                 gradient_losses = np.zeros((self.n_experts))
                 for i, expert_results in enumerate(self.experts_results):
                     df_expert_results = convert_df(expert_results)
@@ -163,63 +155,40 @@ class AAA:
             gradient_losses = None
 
         # select expert
-        selected_expert = self._weighted_random_choice()
+        selected_expert = weighted_random_choice(self.learner.w)
+        curr_expert_bboxes = results[selected_expert]
 
         # match id
-        if self.config["matching"]["time"] == "current":
-            if self.prev_expert is None:
-                prev_expert_bboxes = None
-            else:
-                prev_expert_bboxes = self.experts_results[self.prev_expert]
-                if len(prev_expert_bboxes) > 0:
-                    prev_expert_bboxes = prev_expert_bboxes[
-                        prev_expert_bboxes[:, 0] == self.timer + 1
+        if len(curr_expert_bboxes) > 0:
+            if self.config["matching"]["time"] == "previous":
+                curr_expert_prev_bboxes = self.experts_results[selected_expert]
+                if len(curr_expert_prev_bboxes) > 0:
+                    curr_expert_prev_bboxes = curr_expert_prev_bboxes[
+                        curr_expert_prev_bboxes[:, 0] == self.timer
                     ]
+                    curr_expert_prev_bboxes = curr_expert_prev_bboxes[:, 1:]
 
-            curr_expert_bboxes = results[selected_expert]
-            matched_id = match_id(
-                prev_expert_bboxes,
-                curr_expert_bboxes,
-                self.config["matching"]["threshold"],
-            )
+                matched_id = match_id(
+                    self.prev_bboxes,
+                    curr_expert_prev_bboxes,
+                    self.config["matching"]["threshold"],
+                )
 
-            # convert id
-            converted_id = []
-            for prev_id, curr_id in matched_id:
-                curr_expert_bboxes[curr_expert_bboxes[:, 0] == curr_id, 0] = prev_id
-                converted_id.append(curr_id)
+                # get target idx
+                target_idxs = {}
+                for prev_id, curr_id in matched_id:
+                    curr_idx = np.where(curr_expert_bboxes[:, 0] == curr_id)[0]
+                    if len(curr_idx) > 0:
+                        target_idxs[curr_idx[0]] = prev_id
 
-            # create new id
-            for i in range(len(curr_expert_bboxes)):
-                if curr_expert_bboxes[i, 0] not in converted_id:
-                    curr_expert_bboxes[i, 0] = self.last_id
-                    self.last_id += 1
+                for target_idx, prev_id in target_idxs.items():
+                    curr_expert_bboxes[target_idx, 0] = prev_id
 
-        elif self.config["matching"]["time"] == "previous":
-            curr_expert_bboxes = self.experts_results[selected_expert]
-            curr_expert_bboxes = curr_expert_bboxes[
-                curr_expert_bboxes[:, 0] == self.timer
-            ]
-
-            matched_id = match_id(
-                self.prev_bboxes,
-                curr_expert_bboxes,
-                self.config["matching"]["threshold"],
-            )
-
-            curr_expert_bboxes = results[selected_expert]
-
-            # convert id
-            converted_id = []
-            for prev_id, curr_id in matched_id:
-                curr_expert_bboxes[curr_expert_bboxes[:, 0] == curr_id, 0] = prev_id
-                converted_id.append(curr_id)
-
-            # create new id
-            for i in range(len(curr_expert_bboxes)):
-                if curr_expert_bboxes[i, 0] not in converted_id:
-                    curr_expert_bboxes[i, 0] = self.last_id
-                    self.last_id += 1
+                # create new id
+                for i in range(len(curr_expert_bboxes)):
+                    if i not in target_idxs.keys():
+                        curr_expert_bboxes[i, 0] = self.last_id
+                        self.last_id += 1
 
         self.prev_expert = selected_expert
         self.prev_bboxes = copy.deepcopy(curr_expert_bboxes)
