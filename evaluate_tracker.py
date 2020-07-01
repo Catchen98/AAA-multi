@@ -68,6 +68,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     results = eval_trackers(args.trackers, args.datasets)
-    for tracker, result in results.items():
-        print(tracker)
-        print(result["MOT17"])
+    for tracker, tracker_result in results.items():
+        for dataset, dataset_result in tracker_result.items():
+            print(f"{tracker}: {dataset}")
+            print(dataset_result)

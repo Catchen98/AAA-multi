@@ -9,7 +9,7 @@ from torchvision.transforms import Compose, Normalize, ToTensor
 
 from expert import Expert
 
-sys.path.append("external/deepmot/test_tracktor")
+sys.path.append("external/DeepMOT/test_tracktor")
 from src.frcnn.frcnn.model import test
 from src.tracktor.tracker import Tracker
 

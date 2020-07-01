@@ -383,11 +383,11 @@ class DeepMOT(Expert):
         return result
 
     def preprocess(self, img_path, dets):
-        if dets is None:
-            return []
-
         img_curr = cv2.imread(img_path)
         h, w, _ = img_curr.shape
+
+        if dets is None:
+            return img_curr, [], h, w
 
         frames = []
         for det in dets:

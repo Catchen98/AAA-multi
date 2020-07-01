@@ -42,6 +42,36 @@ TRACKING_OUT_COLS = [
 ]
 
 
+class CustomMPNTracker(MPNTracker):
+    def __init__(self, *args, **kwargs):
+        super(CustomMPNTracker, self).__init__(*args, **kwargs)
+
+    def _load_full_seq_graph_object(self, seq_name):
+        """
+        Loads a MOTGraph (see data/mot_graph.py) object corresponding to the entire sequence.
+        """
+        step_size = self.dataset.seq_info_dicts[seq_name]['step_size']
+        frames_per_graph = self._estimate_frames_per_graph(seq_name)
+        start_frame = self.dataset.seq_det_dfs[seq_name].frame.min()
+        end_frame = self.dataset.seq_det_dfs[seq_name].frame.max()
+
+        # TODO: Should use seconds as unit, and not number of frames
+        if self.dataset.dataset_params['max_frame_dist'] == 'max':
+            max_frame_dist = step_size * (frames_per_graph - 1)
+
+        else:
+            max_frame_dist = self.dataset.dataset_params['max_frame_dist']
+
+        full_graph = self.dataset.get_from_frame_and_seq(seq_name=seq_name,
+                                                         start_frame=start_frame,
+                                                         end_frame=end_frame,
+                                                         return_full_object=True,
+                                                         ensure_end_is_in=True,
+                                                         max_frame_dist = max_frame_dist,
+                                                         inference_mode=True)
+        full_graph.frames_per_graph = frames_per_graph
+        return full_graph
+
 class CustomMOTNeuralSolver(MOTNeuralSolver):
     def __init__(self, *args, **kwargs):
         super(CustomMOTNeuralSolver, self).__init__(*args, **kwargs)
@@ -58,7 +88,7 @@ class CustomMOTNeuralSolver(MOTNeuralSolver):
         return model, cnn_model
 
     def track_seq(self, dataset):
-        tracker = MPNTracker(
+        tracker = CustomMPNTracker(
             dataset=dataset,
             graph_model=self.model,
             use_gt=False,

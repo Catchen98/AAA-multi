@@ -4,10 +4,11 @@ import cv2
 
 from expert import Expert
 
-sys.path.append("external/Deep-SORT-YOLOv4/tensorflow2.0/deep-sort-yolov4")
-from deep_sort import nn_matching, preprocessing
+sys.path.append("external/deep_sort")
+from deep_sort import nn_matching
 from deep_sort.tracker import Tracker
 from deep_sort.detection import Detection
+from application_util import preprocessing
 from tools.generate_detections import create_box_encoder
 
 
@@ -32,7 +33,7 @@ class DeepSort(Expert):
             self.max_cosine_distance = 0.2
             self.nn_budget = 100
         else:
-            self.min_confidence = 0.8
+            self.min_confidence = 0.0
             self.min_detection_height = 0
             self.nms_max_overlap = 1.0
             self.max_cosine_distance = 0.2
@@ -74,7 +75,7 @@ class DeepSort(Expert):
             bbox, confidence, feature = row[2:6], row[6], row[10:]
             if bbox[3] < self.min_detection_height:
                 continue
-            detection_list.append(Detection(bbox, confidence, None, feature))
+            detection_list.append(Detection(bbox, confidence, feature))
         detections = [d for d in detection_list if d.confidence >= self.min_confidence]
 
         # Run non-maxima suppression.

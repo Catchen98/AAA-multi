@@ -138,6 +138,7 @@ external/
 data/
 weights/
 model/
+log/
 
 # result
 output/
