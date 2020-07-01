@@ -42,11 +42,13 @@ class WAADelayed:
 
 
 class AAA:
-    def __init__(self, n_experts):
-        self.name = "AAA"
+    def __init__(self, n_experts, config):
+        self.name = f"AAA_{config}"
         self.n_experts = n_experts
+        self.config = config
 
-        self.detector = FixedDetector(30)
+        if self.config["detector"]["type"] == "fixed":
+            self.detector = FixedDetector(self.config["detector"]["duration"])
 
         self.learner = WAADelayed()
 
@@ -58,7 +60,7 @@ class AAA:
             "external/mot_neural_solver/configs/preprocessing_cfg.yaml",
             True,
         )
-        self.is_reset_offline = True
+        self.is_reset_offline = self.config["offline"]["reset"]
 
         self.acc = mm.MOTAccumulator(auto_id=True)
 
@@ -137,7 +139,9 @@ class AAA:
                         acc,
                         metrics=["num_false_positives", "num_misses", "num_switches"],
                     )
-                    loss = sum(summary.iloc[0].values)
+
+                    if self.config["loss"]["type"] == "sum":
+                        loss = sum(summary.iloc[0].values)
                     gradient_losses[i] = loss
                 self.learner.update(gradient_losses, self.timer + 1)
 
@@ -158,7 +162,9 @@ class AAA:
             feedback = None
             gradient_losses = None
 
-        self.curr_bboxes = convert_id(self.prev_bboxes, self.curr_bboxes, 0.3)
+        self.curr_bboxes = convert_id(
+            self.prev_bboxes, self.curr_bboxes, self.config["matching"]["threshold"]
+        )
         for i in range(len(self.curr_bboxes)):
             if self.curr_bboxes[i, 0] == -1:
                 self.curr_bboxes[i, 0] = self.last_id

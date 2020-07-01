@@ -39,17 +39,6 @@ def convert_id(prev_bboxes, curr_bboxes, threshold):
     if prev_bboxes is None or len(prev_bboxes) == 0:
         return curr_bboxes
 
-    # G = {}
-    # for prev_bbox in prev_bboxes:
-    #     prev_id = int(prev_bbox[0])
-    #     iou_scores = overlap_ratio(prev_bbox[1:], curr_bboxes[:, 1:])
-    #     valid_idxs = np.where(iou_scores > threshold)[0]
-
-    #     if len(valid_idxs) > 0:
-    #         G[f"p{prev_id}"] = {
-    #             f"c{valid_idx}": iou_scores[valid_idx] for valid_idx in valid_idxs
-    #         }
-
     G = nx.DiGraph()
     edges = []
     for prev_bbox in prev_bboxes:
@@ -86,10 +75,13 @@ def convert_id(prev_bboxes, curr_bboxes, threshold):
 
 
 def convert_df(results, confidence=1):
-    data = np.zeros((len(results), 10))
-    data[:, :6] = results
-    data[:, 6:] = confidence
-    data[:, 7:] = -1
+    if len(results) > 0:
+        data = np.zeros((len(results), 10))
+        data[:, :6] = results
+        data[:, 6:] = confidence
+        data[:, 7:] = -1
+    else:
+        data = np.empty((0, 10))
     df = pd.DataFrame(
         data,
         columns=[

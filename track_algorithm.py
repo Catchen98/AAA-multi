@@ -24,7 +24,7 @@ class ReadResult:
             return value[:, 1:6]
 
 
-def write_results(self, data, output_dir, filename):
+def write_results(data, output_dir, filename):
     df = pd.DataFrame(data,)
 
     os.makedirs(output_dir, exist_ok=True)
@@ -85,7 +85,13 @@ def track_seq(experts_name, algorithm, seq):
 
 @do_not_print
 def get_algorithm(experts_name):
-    algorithm = AAA(len(experts_name))
+    config = {
+        "detector": {"type": "fixed", "duration": 30},
+        "offline": {"reset": True},
+        "matching": {"threshold": 0.1},
+        "loss": {"type": "sum"},
+    }
+    algorithm = AAA(len(experts_name), config)
     return algorithm
 
 
@@ -99,7 +105,7 @@ def main(experts_name):
     algorithm = get_algorithm(experts_name)
 
     for dataset_name, dataset in datasets.items():
-        dataset_dir = OUTPUT_PATH / dataset_name / "Algorithm"
+        dataset_dir = OUTPUT_PATH / dataset_name / algorithm.name
 
         for seq in dataset:
             if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
