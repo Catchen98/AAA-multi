@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 
 import networkx as nx
-from networkx.algorithms import bipartite
 
 
 def overlap_ratio(rect1, rect2):
@@ -25,7 +24,7 @@ def overlap_ratio(rect1, rect2):
     return iou
 
 
-def convert_id(prev_bboxes, curr_bboxes, threshold):
+def match_id(prev_bboxes, curr_bboxes, threshold):
     """
     bbox shoud be [Number of box, 5] which is [id, x, y, w, h]
     """
@@ -33,11 +32,8 @@ def convert_id(prev_bboxes, curr_bboxes, threshold):
     if len(curr_bboxes) == 0:
         return []
 
-    # init id
-    curr_bboxes[:, 0] = -1
-
     if prev_bboxes is None or len(prev_bboxes) == 0:
-        return curr_bboxes
+        return []
 
     G = nx.DiGraph()
     edges = []
@@ -62,16 +58,19 @@ def convert_id(prev_bboxes, curr_bboxes, threshold):
 
     G.add_edges_from(edges)
     mincostFlow = nx.max_flow_min_cost(G, "s", "t")
+
+    result = []
     for start_point, sflow in mincostFlow["s"].items():
         if sflow == 1:
             for end_point, eflow in mincostFlow[start_point].items():
                 if eflow == 1:
                     prev_id = int(start_point[1:])
                     curr_idx = int(end_point[1:])
-                    curr_bboxes[curr_idx, 0] = prev_id
+                    curr_id = curr_bboxes[curr_idx, 0]
+                    result.append((prev_id, curr_id))
                     break
 
-    return curr_bboxes
+    return result
 
 
 def convert_df(results, confidence=1):
