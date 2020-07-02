@@ -8,7 +8,12 @@ import motmetrics as mm
 
 from algorithms.anchor_detector import FixedDetector
 from feedback.neural_solver import NeuralSolver
-from algorithms.aaa_util import match_id, convert_df, weighted_random_choice
+from algorithms.aaa_util import (
+    match_id,
+    convert_df,
+    weighted_random_choice,
+    loss_function,
+)
 
 
 class WAADelayed:
@@ -129,17 +134,12 @@ class AAA:
                 gradient_losses = np.zeros((self.n_experts))
                 for i, expert_results in enumerate(self.experts_results):
                     df_expert_results = convert_df(expert_results)
+
                     acc = mm.utils.compare_to_groundtruth(
                         df_feedback, df_expert_results, "iou", distth=0.5
                     )
                     mh = mm.metrics.create()
-                    summary = mh.compute(
-                        acc,
-                        metrics=["num_false_positives", "num_misses", "num_switches"],
-                    )
-
-                    if self.config["loss"]["type"] == "sum":
-                        loss = sum(summary.iloc[0].values)
+                    loss = loss_function(self.config["loss"]["type"], mh, acc)
                     gradient_losses[i] = loss
                 self.learner.update(gradient_losses, self.timer + 1)
 
@@ -174,21 +174,28 @@ class AAA:
                     self.config["matching"]["threshold"],
                 )
 
-                # get target idx
-                target_idxs = {}
-                for prev_id, curr_id in matched_id:
-                    curr_idx = np.where(curr_expert_bboxes[:, 0] == curr_id)[0]
-                    if len(curr_idx) > 0:
-                        target_idxs[curr_idx[0]] = prev_id
+            elif self.config["matching"]["time"] == "current":
+                matched_id = match_id(
+                    self.prev_bboxes,
+                    curr_expert_bboxes,
+                    self.config["matching"]["threshold"],
+                )
 
-                for target_idx, prev_id in target_idxs.items():
-                    curr_expert_bboxes[target_idx, 0] = prev_id
+            # get target idx
+            target_idxs = {}
+            for prev_id, curr_id in matched_id:
+                curr_idx = np.where(curr_expert_bboxes[:, 0] == curr_id)[0]
+                if len(curr_idx) > 0:
+                    target_idxs[curr_idx[0]] = prev_id
 
-                # create new id
-                for i in range(len(curr_expert_bboxes)):
-                    if i not in target_idxs.keys():
-                        curr_expert_bboxes[i, 0] = self.last_id
-                        self.last_id += 1
+            for target_idx, prev_id in target_idxs.items():
+                curr_expert_bboxes[target_idx, 0] = prev_id
+
+            # create new id
+            for i in range(len(curr_expert_bboxes)):
+                if i not in target_idxs.keys():
+                    curr_expert_bboxes[i, 0] = self.last_id
+                    self.last_id += 1
 
         self.prev_expert = selected_expert
         self.prev_bboxes = copy.deepcopy(curr_expert_bboxes)

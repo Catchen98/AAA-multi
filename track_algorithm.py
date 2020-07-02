@@ -58,15 +58,15 @@ def track_seq(experts_name, algorithm, seq):
             frame_result[:, 0] = frame_idx + 1
             results.append(frame_result)
 
-        frame_w = np.zeros((len(w) + 1))
-        frame_w[1:] = w
-        frame_w[0] = frame_idx + 1
+        frame_w = np.zeros((1, len(w) + 1))
+        frame_w[0, 1:] = w
+        frame_w[0, 0] = frame_idx + 1
         ws.append(frame_w)
 
         if expert_loss is not None:
-            frame_expert_loss = np.zeros((len(expert_loss) + 1))
-            frame_expert_loss[1:] = expert_loss
-            frame_expert_loss[0] = frame_idx + 1
+            frame_expert_loss = np.zeros((1, len(expert_loss) + 1))
+            frame_expert_loss[0, 1:] = expert_loss
+            frame_expert_loss[0, 0] = frame_idx + 1
             expert_losses.append(frame_expert_loss)
 
         if feedback is not None:
@@ -86,9 +86,9 @@ def track_seq(experts_name, algorithm, seq):
 @do_not_print
 def get_algorithm(experts_name):
     config = {
-        "detector": {"type": "fixed", "duration": 30},
+        "detector": {"type": "fixed", "duration": 60},
         "offline": {"reset": True},
-        "matching": {"threshold": 0.3, "time": "previous"},
+        "matching": {"threshold": 0.5, "time": "current"},
         "loss": {"type": "sum"},
     }
     algorithm = AAA(len(experts_name), config)
@@ -97,8 +97,8 @@ def get_algorithm(experts_name):
 
 def main(experts_name):
     datasets = {
-        "MOT15": MOT(DATASET_PATH["MOT15"]),
-        "MOT16": MOT(DATASET_PATH["MOT16"]),
+        # "MOT15": MOT(DATASET_PATH["MOT15"]),
+        # "MOT16": MOT(DATASET_PATH["MOT16"]),
         "MOT17": MOT(DATASET_PATH["MOT17"]),
     }
 
@@ -108,8 +108,6 @@ def main(experts_name):
         dataset_dir = OUTPUT_PATH / dataset_name / algorithm.name
 
         for seq in dataset:
-            # if seq.seq_info["seq_name"] == "PETS09-S2L1":
-            #     continue
             if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
                 print(f"Pass {seq.seq_info['seq_name']}")
             else:

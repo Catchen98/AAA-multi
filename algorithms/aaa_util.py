@@ -116,3 +116,32 @@ def convert_df(results, confidence=1):
     df = df.set_index(["FrameId", "Id"])
 
     return df
+
+
+def loss_function(loss_type, mh, acc):
+    if loss_type == "sum":
+        summary = mh.compute(
+            acc, metrics=["num_false_positives", "num_misses", "num_switches"],
+        )
+        loss = sum(summary.iloc[0].values)
+    elif loss_type == "sigmoid-sum":
+        loss = 0
+        for frame in acc.mot_events.index.unique(level=0):
+            summary = mh.compute(
+                acc.mot_events.loc[frame],
+                metrics=["num_false_positives", "num_misses", "num_switches"],
+            )
+            met_sum = sum(summary.iloc[0].values)
+            sigmoid = 1 / (1 + np.exp(-met_sum))
+            loss += sigmoid
+    elif loss_type == "mota":
+        summary = mh.compute(acc, metrics=["mota"],)
+        mota = summary.iloc[0].values[0]
+        loss = 1 - mota / 100
+    elif loss_type == "fmota":
+        loss = 0
+        for frame in acc.mot_events.index.unique(level=0):
+            summary = mh.compute(acc.mot_events.loc[frame], metrics=["mota"],)
+            mota = summary.iloc[0].values[0]
+            loss += 1 - mota / 100
+    return loss

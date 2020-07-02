@@ -19,7 +19,7 @@ def main():
     )
 
     for dataset_name, dataset in datasets.items():
-        dataset_dir = OUTPUT_PATH / f"{dataset_name}/NueralSolver"
+        dataset_dir = OUTPUT_PATH / dataset_name / tracker.name
         for seq in dataset:
             if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
                 print(f"Pass {seq.seq_info['seq_name']}")
