@@ -47,7 +47,7 @@
     conda activate [ENV_NAME]
 
     # For our framework
-    conda install -y black flake8 pandas
+    conda install -y black flake8 pandas seaborn
     conda install -y pytorch torchvision cudatoolkit=10.1 -c pytorch-nightly
     conda install -y tensorflow-gpu
 

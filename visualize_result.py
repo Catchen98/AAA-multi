@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from PIL import Image
 
 import numpy as np
@@ -7,7 +8,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import seaborn as sns
 
-from paths import OUTPUT_PATH
+from datasets.mot import MOT
+from paths import OUTPUT_PATH, DATASET_PATH
 from file_manager import ReadResult
 
 sns.set()
@@ -21,18 +23,19 @@ def draw_result(
         show = ["weight", "frame"]
     else:
         show = ["frame"]
+
     for seq in dataset:
-        tracker_reader = ReadResult(
-            seq.seq_info["dataset_name"], tracker_name, seq.seq_info["seq_name"]
-        )
+        dataset_name = seq.seq_info["dataset_name"]
+        seq_name = seq.seq_info["seq_name"]
+        tracker_reader = ReadResult(dataset_name, tracker_name, seq_name)
 
         if is_algorithm:
-            dataset_dir = OUTPUT_PATH / seq.seq_info["dataset_name"] / tracker_name
+            dataset_dir = OUTPUT_PATH / dataset_name / tracker_name
 
-            weight_path = dataset_dir / f"{seq.seq_info['seq_name']}_weight.txt"
+            weight_path = dataset_dir / f"{seq_name}_weight.txt"
             weights = pd.read_csv(weight_path, header=None).set_index(0)
 
-        save_dir = result_dir / f"{tracker_name}" / seq.name
+        save_dir = result_dir / dataset_name / tracker_name / seq_name
 
         os.makedirs(save_dir, exist_ok=True)
 
@@ -91,14 +94,13 @@ def draw_result(
                     sample_ax.add_patch(rect)
 
                     sample_ax.annotate(
-                        f"ID:{box[0]}",
+                        f"ID:{int(box[0])}",
                         xy=(box[1] + box[3], box[2]),
                         xycoords="data",
                         weight="bold",
                         xytext=(10, 10),
                         textcoords="offset points",
                         size=10,
-                        arrowprops=dict(arrowstyle="->"),
                     )
 
                 # draw ground truth
@@ -115,14 +117,13 @@ def draw_result(
                     )
                     sample_ax.add_patch(rect)
                     sample_ax.annotate(
-                        f"RID:{box[0]}",
-                        xy=(box[0], box[1] + box[3]),
+                        f"RID:{int(box[0])}",
+                        xy=(box[1], box[2] + box[4]),
                         xycoords="data",
                         weight="bold",
                         xytext=(-50, -20),
                         textcoords="offset points",
                         size=10,
-                        arrowprops=dict(arrowstyle="->"),
                     )
                 sample_ax.axis("off")
 
@@ -132,3 +133,18 @@ def draw_result(
             plt.subplots_adjust(wspace=0, hspace=0.1 if len(ratios) > 1 else 0)
             plt.savefig(save_dir / filename, bbox_inches="tight")
             plt.close()
+
+
+def main():
+    datasets = {
+        # "MOT15": MOT(DATASET_PATH["MOT15"]),
+        # "MOT16": MOT(DATASET_PATH["MOT16"]),
+        "MOT17": MOT(DATASET_PATH["MOT17"]),
+    }
+
+    for dataset_name, dataset in datasets.items():
+        draw_result(dataset, "Tracktor", Path("visualize"), is_algorithm=False)
+
+
+if __name__ == "__main__":
+    main()

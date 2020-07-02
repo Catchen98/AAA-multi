@@ -59,25 +59,26 @@ def track_seq(experts_name, algorithm, seq):
 
 
 @do_not_print
-def get_algorithm(experts_name):
+def get_algorithm(experts_name, duration, threshold, loss_type):
     config = {
-        "detector": {"type": "fixed", "duration": 70},
+        "detector": {"type": "fixed", "duration": duration},
         "offline": {"reset": True},
-        "matching": {"threshold": 0.5, "time": "current"},
-        "loss": {"type": "sum"},
+        "matching": {"threshold": threshold, "time": "current"},
+        "loss": {"type": loss_type},
     }
     algorithm = AAA(len(experts_name), config)
     return algorithm
 
 
-def main(experts_name):
+def main(experts_name, duration, threshold, loss_type):
     datasets = {
         # "MOT15": MOT(DATASET_PATH["MOT15"]),
         # "MOT16": MOT(DATASET_PATH["MOT16"]),
         "MOT17": MOT(DATASET_PATH["MOT17"]),
     }
 
-    algorithm = get_algorithm(experts_name)
+    print(f"Duration: {duration}, Threshold: {threshold}, Loss: {loss_type}")
+    algorithm = get_algorithm(experts_name, duration, threshold, loss_type)
 
     for dataset_name, dataset in datasets.items():
         dataset_dir = OUTPUT_PATH / dataset_name / algorithm.name
@@ -93,12 +94,36 @@ def main(experts_name):
                 seq.write_results(results, dataset_dir)
                 write_results(ws, dataset_dir, f"{seq.seq_info['seq_name']}_weight.txt")
                 write_results(
-                    expert_losses, dataset_dir, f"{seq.seq_info['seq_name']}_loss.txt"
+                    expert_losses, dataset_dir, f"{seq.seq_info['seq_name']}_loss.txt",
                 )
                 write_results(
-                    feedbacks, dataset_dir, f"{seq.seq_info['seq_name']}_feedback.txt"
+                    feedbacks, dataset_dir, f"{seq.seq_info['seq_name']}_feedback.txt",
                 )
 
 
 if __name__ == "__main__":
-    main(["DAN", "DeepSort", "DeepTAMA", "Sort", "MOTDT"])
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run algorithms")
+    parser.add_argument(
+        "-d",
+        "--duration",
+        type=int,
+        default="50",
+        help="The duration of the algorithm",
+    )
+    parser.add_argument(
+        "-t",
+        "--threshold",
+        type=float,
+        default="0.5",
+        help="The threshold of the algorithm",
+    )
+    parser.add_argument(
+        "-l", "--loss_type", type=str, default="sum", help="The loss of the algorithm",
+    )
+
+    args = parser.parse_args()
+
+    experts_name = ["DAN", "DeepSort", "DeepTAMA", "Sort", "MOTDT"]
+    main(experts_name, args.duration, args.threshold, args.loss_type)
