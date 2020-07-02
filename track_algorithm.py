@@ -1,35 +1,10 @@
-import os
 import numpy as np
-import pandas as pd
 
 from datasets.mot import MOT
 from algorithms.aaa import AAA
 from paths import DATASET_PATH, OUTPUT_PATH
 from print_manager import do_not_print
-
-
-class ReadResult:
-    def __init__(self, dataset_name, expert_name, seq_name):
-        self.results = pd.read_csv(
-            OUTPUT_PATH / dataset_name / expert_name / f"{seq_name}.txt", header=None
-        )
-        self.results_group = self.results.groupby(0)
-        self.frames = list(self.results_group.indices.keys())
-
-    def get_result_by_frame(self, frame_idx):
-        if self.frames.count(frame_idx) == 0:
-            return []
-        else:
-            value = self.results_group.get_group(frame_idx).values
-            return value[:, 1:6]
-
-
-def write_results(data, output_dir, filename):
-    df = pd.DataFrame(data,)
-
-    os.makedirs(output_dir, exist_ok=True)
-    file_path = os.path.join(output_dir, filename)
-    df.to_csv(file_path, index=False, header=False)
+from file_manager import ReadResult, write_results
 
 
 @do_not_print
@@ -44,7 +19,7 @@ def track_seq(experts_name, algorithm, seq):
     ws = []
     expert_losses = []
     feedbacks = []
-    for frame_idx, (img_path, dets) in enumerate(seq):
+    for frame_idx, (img_path, dets, _) in enumerate(seq):
         expert_results = []
         for reader in experts_reader:
             expert_results.append(reader.get_result_by_frame(frame_idx))
@@ -86,7 +61,7 @@ def track_seq(experts_name, algorithm, seq):
 @do_not_print
 def get_algorithm(experts_name):
     config = {
-        "detector": {"type": "fixed", "duration": 60},
+        "detector": {"type": "fixed", "duration": 70},
         "offline": {"reset": True},
         "matching": {"threshold": 0.5, "time": "current"},
         "loss": {"type": "sum"},

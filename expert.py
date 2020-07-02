@@ -68,7 +68,7 @@ class Expert:
     def track_seq(self, seq):
         self.initialize(seq.seq_info)
 
-        for frame_idx, (img_path, dets) in enumerate(seq):
+        for frame_idx, (img_path, dets, _) in enumerate(seq):
             results = self.track(img_path, dets)
             results = np.array(results)
             if len(results) > 0:

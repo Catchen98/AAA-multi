@@ -30,12 +30,13 @@ def overlap_ratio(rect1, rect2):
 
 
 def weighted_random_choice(w):
-    pick = random.uniform(0, sum(w))
+    pick = random.uniform(0, 1)
     current = 0
     for i, weight in enumerate(w):
         current += weight
         if current >= pick:
             return i
+    return len(w) - 1
 
 
 def match_id(prev_bboxes, curr_bboxes, threshold):
@@ -144,4 +145,8 @@ def loss_function(loss_type, mh, acc):
             summary = mh.compute(acc.mot_events.loc[frame], metrics=["mota"],)
             mota = summary.iloc[0].values[0]
             loss += 1 - mota / 100
+    elif loss_type == "fn":
+        summary = mh.compute(acc, metrics=["num_misses"],)
+        fn = summary.iloc[0].values[0]
+        loss = fn
     return loss

@@ -38,15 +38,19 @@ FPS_DICT = {
 
 class MOTDataReader:
     def __init__(
-        self, seq_info, image_folder, detection_file_name, min_confidence=None
+        self, seq_info, image_folder, detection_file_name, label_file_name=None,
     ):
         self.seq_info = seq_info
         self.image_folder = image_folder
         self.detection_file_name = detection_file_name
         self.image_format = os.path.join(self.image_folder, "{0:06d}.jpg")
         self.detection = pd.read_csv(self.detection_file_name, header=None)
-        if min_confidence is not None:
-            self.detection = self.detection[self.detection[6] > min_confidence]
+        if label_file_name is not None:
+            self.gt = pd.read_csv(label_file_name, header=None)
+            self.gt_group = self.gt.groupby(0)
+            self.gt_group_keys = list(self.gt_group.indices.keys())
+        else:
+            self.gt = None
         self.detection_group = self.detection.groupby(0)
         self.detection_group_keys = list(self.detection_group.indices.keys())
         self.seq_info["total_length"] = len(self.detection_group_keys)
@@ -64,6 +68,15 @@ class MOTDataReader:
             return None
         return self.detection_group.get_group(index).values
 
+    def get_label_by_index(self, index):
+        if (
+            self.gt is None
+            or index > len(self.gt_group_keys)
+            or self.gt_group_keys.count(index) == 0
+        ):
+            return None
+        return self.gt_group.get_group(index).values
+
     def get_image_by_index(self, index):
         if index > len(self.detection_group_keys):
             return None
@@ -74,6 +87,7 @@ class MOTDataReader:
         return (
             self.get_image_by_index(item + 1),
             self.get_detection_by_index(item + 1),
+            self.get_label_by_index(item + 1),
         )
 
     def __iter__(self):
@@ -141,8 +155,15 @@ class MOT:
                         "frame_width": w,
                         "frame_height": h,
                     }
+
+                if data_type == "train":
+                    gt_path = os.path.join(main_dir, sequence_name, "gt", "gt.txt")
+                else:
+                    gt_path = None
                 self.sequences[data_type].append(
-                    MOTDataReader(seq_info, image_dir, det_path)
+                    MOTDataReader(
+                        seq_info, image_dir, det_path, label_file_name=gt_path
+                    )
                 )
 
         self.all_sequence_names = sum(self.sequence_names.values(), [])
