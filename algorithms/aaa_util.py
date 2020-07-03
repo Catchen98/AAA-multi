@@ -142,8 +142,10 @@ def loss_function(loss_type, mh, acc):
     elif loss_type == "fmota":
         loss = 0
         for frame in acc.mot_events.index.unique(level=0):
-            summary = mh.compute(acc.mot_events.loc[frame], metrics=["mota"],)
+            summary = mh.compute(acc.mot_events.loc[frame], metrics=["mota"])
             mota = summary.iloc[0].values[0]
+            if np.isinf(mota):
+                continue
             loss += 1 - mota / 100
     elif loss_type == "fn":
         summary = mh.compute(acc, metrics=["num_misses"],)

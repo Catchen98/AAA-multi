@@ -200,4 +200,12 @@ class AAA:
         self.prev_expert = selected_expert
         self.prev_bboxes = copy.deepcopy(curr_expert_bboxes)
 
-        return curr_expert_bboxes, self.learner.w, gradient_losses, feedback
+        print(f"{self.frame_idx}:{self.learner.w}")
+
+        return (
+            curr_expert_bboxes,
+            self.learner.w,
+            gradient_losses,
+            feedback,
+            selected_expert,
+        )

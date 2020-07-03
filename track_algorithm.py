@@ -19,12 +19,14 @@ def track_seq(experts_name, algorithm, seq):
     ws = []
     expert_losses = []
     feedbacks = []
+    selected_experts = []
+
     for frame_idx, (img_path, dets, _) in enumerate(seq):
         expert_results = []
         for reader in experts_reader:
             expert_results.append(reader.get_result_by_frame(frame_idx))
 
-        result, w, expert_loss, feedback = algorithm.track(
+        result, w, expert_loss, feedback, selected_expert = algorithm.track(
             img_path, dets, expert_results
         )
         if len(result) > 0:
@@ -50,12 +52,18 @@ def track_seq(experts_name, algorithm, seq):
             frame_feedback[:, 0] = frame_idx + 1
             feedbacks.append(frame_feedback)
 
+        frame_selected = np.zeros((1, 2))
+        frame_selected[0, 1] = selected_expert
+        frame_selected[0, 0] = frame_idx + 1
+        selected_experts.append(frame_selected)
+
     results = np.concatenate(results, axis=0)
     ws = np.concatenate(ws, axis=0)
     expert_losses = np.concatenate(expert_losses, axis=0)
     feedbacks = np.concatenate(feedbacks, axis=0)
+    selected_experts = np.concatenate(selected_experts, axis=0)
 
-    return results, ws, expert_losses, feedbacks
+    return results, ws, expert_losses, feedbacks, selected_experts
 
 
 @do_not_print
@@ -88,7 +96,7 @@ def main(experts_name, duration, threshold, loss_type):
                 print(f"Pass {seq.seq_info['seq_name']}")
             else:
                 print(f"Start {seq.seq_info['seq_name']}")
-                results, ws, expert_losses, feedbacks = track_seq(
+                results, ws, expert_losses, feedbacks, selected_experts = track_seq(
                     experts_name, algorithm, seq
                 )
                 seq.write_results(results, dataset_dir)
@@ -98,6 +106,11 @@ def main(experts_name, duration, threshold, loss_type):
                 )
                 write_results(
                     feedbacks, dataset_dir, f"{seq.seq_info['seq_name']}_feedback.txt",
+                )
+                write_results(
+                    selected_experts,
+                    dataset_dir,
+                    f"{seq.seq_info['seq_name']}_selected.txt",
                 )
 
 
