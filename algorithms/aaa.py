@@ -120,7 +120,7 @@ class AAA:
 
             # update weight
             if feedback is not None:
-                df_feedback = convert_df(feedback)
+                df_feedback = convert_df(feedback, is_offline=True)
 
                 smallest_frame = len(self.dets) - self.timer - 1
                 df_cond = df_feedback.index.get_level_values(0) > smallest_frame
@@ -135,11 +135,25 @@ class AAA:
                 for i, expert_results in enumerate(self.experts_results):
                     df_expert_results = convert_df(expert_results)
 
-                    acc = mm.utils.compare_to_groundtruth(
-                        df_feedback, df_expert_results, "iou", distth=0.5
-                    )
+                    if (
+                        self.seq_info["dataset_name"] == "MOT16"
+                        or self.seq_info["dataset_name"] == "MOT17"
+                    ):
+                        acc, ana = mm.utils.CLEAR_MOT_M(
+                            df_feedback,
+                            df_expert_results,
+                            self.seq_info["ini_path"],
+                            "iou",
+                            distth=0.5,
+                            vflag="",
+                        )
+                    else:
+                        acc = mm.utils.compare_to_groundtruth(
+                            df_feedback, df_expert_results, "iou", distth=0.5
+                        )
+                        ana = None
                     mh = mm.metrics.create()
-                    loss = loss_function(self.config["loss"]["type"], mh, acc)
+                    loss = loss_function(self.config["loss"]["type"], mh, acc, ana)
                     gradient_losses[i] = loss
                 self.learner.update(gradient_losses, self.timer + 1)
 
@@ -199,8 +213,6 @@ class AAA:
 
         self.prev_expert = selected_expert
         self.prev_bboxes = copy.deepcopy(curr_expert_bboxes)
-
-        print(f"{self.frame_idx}:{self.learner.w}")
 
         return (
             curr_expert_bboxes,

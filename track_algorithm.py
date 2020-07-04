@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 
 from datasets.mot import MOT
@@ -5,6 +7,7 @@ from algorithms.aaa import AAA
 from paths import DATASET_PATH, OUTPUT_PATH
 from print_manager import do_not_print
 from file_manager import ReadResult, write_results
+from evaluate_tracker import eval_tracker
 
 
 @do_not_print
@@ -78,7 +81,7 @@ def get_algorithm(experts_name, duration, threshold, loss_type):
     return algorithm
 
 
-def main(experts_name, duration, threshold, loss_type):
+def main(experts_name, duration, threshold, loss_type, result_dir):
     datasets = {
         # "MOT15": MOT(DATASET_PATH["MOT15"]),
         # "MOT16": MOT(DATASET_PATH["MOT16"]),
@@ -112,6 +115,7 @@ def main(experts_name, duration, threshold, loss_type):
                     dataset_dir,
                     f"{seq.seq_info['seq_name']}_selected.txt",
                 )
+        eval_tracker(algorithm.name, dataset_name, result_dir)
 
 
 if __name__ == "__main__":
@@ -138,5 +142,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    result_dir = Path("eval")
+
     experts_name = ["DAN", "DeepSort", "DeepTAMA", "Sort", "MOTDT"]
-    main(experts_name, args.duration, args.threshold, args.loss_type)
+    main(experts_name, args.duration, args.threshold, args.loss_type, result_dir)

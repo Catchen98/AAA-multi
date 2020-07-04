@@ -84,12 +84,12 @@ def match_id(prev_bboxes, curr_bboxes, threshold):
     return result
 
 
-def convert_df(results, confidence=1):
+def convert_df(results, is_offline=False):
     if len(results) > 0:
         data = np.zeros((len(results), 10))
         data[:, :6] = results
-        data[:, 6:] = confidence
-        data[:, 7:] = -1
+        data[:, 6:] = 1
+        data[:, 7:] = 1 if is_offline else -1
     else:
         data = np.empty((0, 10))
     df = pd.DataFrame(
@@ -119,10 +119,10 @@ def convert_df(results, confidence=1):
     return df
 
 
-def loss_function(loss_type, mh, acc):
+def loss_function(loss_type, mh, acc, ana):
     if loss_type == "sum":
         summary = mh.compute(
-            acc, metrics=["num_false_positives", "num_misses", "num_switches"],
+            acc, ana=ana, metrics=["num_false_positives", "num_misses", "num_switches"],
         )
         loss = sum(summary.iloc[0].values)
     elif loss_type == "sigmoid-sum":

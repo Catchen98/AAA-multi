@@ -144,6 +144,7 @@ class MOT:
                         "fps": float(config.get("Sequence", "frameRate")),
                         "frame_width": float(config.get("Sequence", "imWidth")),
                         "frame_height": float(config.get("Sequence", "imHeight")),
+                        "ini_path": seqinfo_path,
                     }
                 else:
                     img = Image.open(os.path.join(image_dir, "000001.jpg"))

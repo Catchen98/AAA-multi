@@ -145,7 +145,7 @@ def draw_result(
             plt.close()
 
 
-def draw_all_result(dataset, trackers_name, result_dir, duration):
+def draw_all_result(dataset, trackers_name, result_dir, colors, duration):
     for seq in dataset:
         dataset_name = seq.seq_info["dataset_name"]
         seq_name = seq.seq_info["seq_name"]
@@ -179,10 +179,8 @@ def draw_all_result(dataset, trackers_name, result_dir, duration):
             # draw weight graph
             for i in weights.columns:
                 weight = weights.loc[: frame_idx + 1][i]
-                weight_ax.plot(range(len(weight)), weight)
-                weight_ax.set(
-                    ylabel="Weight", xlim=(0, len(seq)), ylim=(-0.05, 1.05,),
-                )
+                weight_ax.plot(range(len(weight)), weight, color=colors[i])
+                weight_ax.set(ylabel="Weight", xlim=(0, len(seq)), ylim=(-0.05, 1.05,))
             weight_ax.set_xticks([])
 
             # draw anchor line
@@ -218,7 +216,7 @@ def draw_all_result(dataset, trackers_name, result_dir, duration):
                         linewidth=LINEWIDTH,
                         facecolor="none",
                         alpha=1,
-                        edgecolor="red",
+                        edgecolor=colors[t_i],
                     )
                     sample_ax.add_patch(rect)
 
@@ -230,13 +228,14 @@ def draw_all_result(dataset, trackers_name, result_dir, duration):
                         xytext=(-5, 5),
                         textcoords="offset points",
                         size=ANNOT_SIZE,
-                        color="red",
+                        color=colors[t_i],
                     )
 
                 # draw ground truth
-                bboxes = gts[:, 1:6]
-                for i in range(len(bboxes)):
-                    box = bboxes[i]
+                for i in range(len(gts)):
+                    if gts[i, 7] != 1:
+                        continue
+                    box = gts[i, 1:6]
                     rect = patches.Rectangle(
                         (box[1], box[2]),
                         box[3],
@@ -263,7 +262,7 @@ def draw_all_result(dataset, trackers_name, result_dir, duration):
             plt.axis("off")
             plt.grid(False)
             plt.subplots_adjust(wspace=0.1, hspace=0.3)
-            plt.savefig(save_dir / filename, bbox_inches="tight", dpi=300)
+            plt.savefig(save_dir / filename, bbox_inches="tight", dpi=100)
             plt.close()
 
 
@@ -274,14 +273,16 @@ def main():
         "MOT17": MOT(DATASET_PATH["MOT17"]),
     }
 
-    algorithm_name = "AAA_{'detector': {'type': 'fixed', 'duration': 30}, 'offline': {'reset': True}, 'matching': {'threshold': 0.3, 'time': 'current'}, 'loss': {'type': 'fmota'}}"
+    algorithm_name = "AAA_{'detector': {'type': 'fixed', 'duration': 70}, 'offline': {'reset': True}, 'matching': {'threshold': 0.3, 'time': 'current'}, 'loss': {'type': 'sum'}}"
     experts_name = ["DAN", "DeepSort", "DeepTAMA", "Sort", "MOTDT"]
+    colors = sns.color_palette("hls", len(experts_name) + 2).as_hex()[:-1]
     for dataset_name, dataset in datasets.items():
-        # draw_result(
-        #     dataset, algorithm_name, Path("visualize"), is_algorithm=True, duration=70
-        # )
         draw_all_result(
-            dataset, [algorithm_name] + experts_name, Path("visualize"), duration=70
+            dataset,
+            [algorithm_name] + experts_name,
+            Path("visualize"),
+            colors,
+            duration=70,
         )
 
 
