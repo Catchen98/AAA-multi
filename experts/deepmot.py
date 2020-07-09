@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 
-from expert import Expert
+from experts.expert import Expert
 
 sys.path.append("external/deepMOT")
 from utils.tracking_config import tracking_config

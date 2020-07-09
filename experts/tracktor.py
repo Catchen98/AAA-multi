@@ -2,7 +2,7 @@ import sys
 
 from PIL import Image
 
-from expert import Expert
+from experts.expert import Expert
 
 import numpy as np
 

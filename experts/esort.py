@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 
-from expert import Expert
+from experts.expert import Expert
 
 sys.path.append("external/sort")
 from sort import Sort, KalmanBoxTracker

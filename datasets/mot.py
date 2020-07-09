@@ -44,7 +44,7 @@ class MOTDataReader:
         self.image_folder = image_folder
         self.detection_file_name = detection_file_name
         self.image_format = os.path.join(self.image_folder, "{0:06d}.jpg")
-        self.detection = pd.read_csv(self.detection_file_name, header=None)
+        self.detection = pd.read_csv(self.detection_file_name, header=None, dtype=float)
         if label_file_name is not None:
             self.gt = pd.read_csv(label_file_name, header=None)
             self.gt_group = self.gt.groupby(0)
@@ -173,10 +173,10 @@ class MOT:
         self.c = 0
 
     def __len__(self):
-        return len(self.sequences["train"])
+        return len(self.all_sequences)
 
     def __getitem__(self, item):
-        return self.sequences["train"][item]
+        return self.all_sequences[item]
 
     def __iter__(self):
         return self

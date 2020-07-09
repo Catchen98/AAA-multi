@@ -2,7 +2,7 @@ import sys
 import numpy as np
 from PIL import Image
 
-from expert import Expert
+from experts.expert import Expert
 
 sys.path.append("external/MOTDT")
 from tracker.mot_tracker import OnlineTracker

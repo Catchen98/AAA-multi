@@ -1,7 +1,7 @@
 import sys
 import cv2
 
-from expert import Expert
+from experts.expert import Expert
 
 sys.path.append("external/Deep-TAMA")
 from tracking.config import config
