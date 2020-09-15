@@ -187,7 +187,7 @@ class AAA:
                 selected_expert,
                 results,
                 self.config["MATCHING"]["threshold"],
-                self.config["MATCHING"]["cl_mode"],
+                self.config["MATCHING"]["mode"],
             )
 
         self.prev_expert = selected_expert

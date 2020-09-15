@@ -1,4 +1,4 @@
-NAME: AAA_kmeans_0.1
+NAME: AAA_kmeans_vote
 EVAL_DIR: eval
 
 EXPERTS:
@@ -17,8 +17,8 @@ OFFLINE:
 
 MATCHING:
   method: kmeans
-  threshold: 0.1
-  cl_mode: all
+  threshold: 0.5
+  mode: vote
 
 LOSS:
   type: fn
