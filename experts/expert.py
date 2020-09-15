@@ -6,11 +6,11 @@ class Expert:
     def __init__(self, name, *args, **kwargs):
         self.name = name
 
-    def initialize(self, seq_info):
+    def initialize(self, seq_info, *args, **kwargs):
         self.history = []
         self.frame_idx = -1
 
-    def track(self, img_path, dets):
+    def track(self, img_path, dets, *args, **kwargs):
         self.frame_idx += 1
 
     @do_not_print

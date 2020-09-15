@@ -3,11 +3,6 @@ import random
 import numpy as np
 import pandas as pd
 
-import networkx as nx
-
-SEED = 2
-random.seed(SEED)
-
 
 def overlap_ratio(rect1, rect2):
     """
@@ -37,51 +32,6 @@ def weighted_random_choice(w):
         if current >= pick:
             return i
     return len(w) - 1
-
-
-def match_id(prev_bboxes, curr_bboxes, threshold):
-    """
-    bbox shoud be [Number of box, 5] which is [id, x, y, w, h]
-    """
-
-    if len(curr_bboxes) == 0 or prev_bboxes is None or len(prev_bboxes) == 0:
-        return []
-
-    G = nx.DiGraph()
-    edges = []
-    for prev_bbox in prev_bboxes:
-        prev_id = int(prev_bbox[0])
-        iou_scores = overlap_ratio(prev_bbox[1:], curr_bboxes[:, 1:])
-        valid_idxs = np.where(iou_scores > threshold)[0]
-
-        for valid_idx in valid_idxs:
-            edges.append(
-                (
-                    f"p{prev_id}",
-                    f"c{valid_idx}",
-                    {"capacity": 1, "weight": int(iou_scores[valid_idx] * 100)},
-                )
-            )
-
-        edges.append(("s", f"p{prev_id}", {"capacity": 1, "weight": 0}))
-
-    for i in range(len(curr_bboxes)):
-        edges.append((f"c{i}", "t", {"weight": 0}))
-
-    G.add_edges_from(edges)
-    mincostFlow = nx.max_flow_min_cost(G, "s", "t")
-
-    result = []
-    for start_point, sflow in mincostFlow["s"].items():
-        if sflow == 1:
-            for end_point, eflow in mincostFlow[start_point].items():
-                if eflow == 1:
-                    prev_id = int(start_point[1:])
-                    curr_idx = int(end_point[1:])
-                    curr_id = curr_bboxes[curr_idx, 0]
-                    result.append((prev_id, curr_id))
-                    break
-    return result
 
 
 def convert_df(results, is_offline=False):

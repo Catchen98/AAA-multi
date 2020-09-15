@@ -1,6 +1,8 @@
 from pathlib import Path
 
+import torch
 import numpy as np
+import random
 
 from datasets.mot import MOT
 from algorithms.aaa import AAA
@@ -8,6 +10,12 @@ from paths import DATASET_PATH, OUTPUT_PATH
 from print_manager import do_not_print
 from file_manager import ReadResult, write_results
 from evaluate_tracker import eval_tracker
+
+
+SEED = 0
+torch.manual_seed(SEED)
+np.random.seed(SEED)
+random.seed(SEED)
 
 
 @do_not_print
@@ -74,7 +82,7 @@ def get_algorithm(experts_name, duration, threshold, loss_type):
     config = {
         "detector": {"type": "fixed", "duration": duration},
         "offline": {"reset": True},
-        "matching": {"threshold": threshold, "time": "current"},
+        "matching": {"method": "kmeans", "threshold": threshold},
         "loss": {"type": loss_type},
     }
     algorithm = AAA(len(experts_name), config)
@@ -126,7 +134,7 @@ if __name__ == "__main__":
         "-d",
         "--duration",
         type=int,
-        default="50",
+        default="70",
         help="The duration of the algorithm",
     )
     parser.add_argument(
@@ -137,7 +145,7 @@ if __name__ == "__main__":
         help="The threshold of the algorithm",
     )
     parser.add_argument(
-        "-l", "--loss_type", type=str, default="sum", help="The loss of the algorithm",
+        "-l", "--loss_type", type=str, default="fn", help="The loss of the algorithm",
     )
 
     args = parser.parse_args()

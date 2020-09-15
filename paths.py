@@ -8,3 +8,5 @@ DATASET_PATH = {
     "DETRAC": Path("/home/heonsong/Disk2/Dataset/DETRAC"),
 }
 OUTPUT_PATH = Path("output")
+EVAL_PATH = Path("eval")
+VIS_PATH = Path("visualize")

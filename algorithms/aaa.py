@@ -7,9 +7,9 @@ import scipy.special as sc
 import motmetrics as mm
 
 from algorithms.anchor_detector import FixedDetector
+from algorithms.id_matcher import IDMatcher
 from feedback.neural_solver import NeuralSolver
 from algorithms.aaa_util import (
-    match_id,
     convert_df,
     weighted_random_choice,
     loss_function,
@@ -55,6 +55,7 @@ class AAA:
             self.detector = FixedDetector(self.config["detector"]["duration"])
 
         self.learner = WAADelayed()
+        self.matcher = IDMatcher()
 
         self.offline = NeuralSolver(
             "weights/NeuralSolver/mot_mpnet_epoch_006.ckpt",
@@ -70,11 +71,11 @@ class AAA:
 
     def initialize(self, seq_info):
         self.frame_idx = -1
-        self.last_id = 0
 
         self.seq_info = seq_info
         self.detector.initialize(seq_info)
         self.learner.initialize(self.n_experts)
+        self.matcher.initialize(self.n_experts)
         self.prev_expert = None
         self.prev_bboxes = None
 
@@ -173,43 +174,20 @@ class AAA:
         curr_expert_bboxes = results[selected_expert]
 
         # match id
-        if len(curr_expert_bboxes) > 0:
-            if self.config["matching"]["time"] == "previous":
-                curr_expert_prev_bboxes = self.experts_results[selected_expert]
-                if len(curr_expert_prev_bboxes) > 0:
-                    curr_expert_prev_bboxes = curr_expert_prev_bboxes[
-                        curr_expert_prev_bboxes[:, 0] == self.timer
-                    ]
-                    curr_expert_prev_bboxes = curr_expert_prev_bboxes[:, 1:]
-
-                matched_id = match_id(
-                    self.prev_bboxes,
-                    curr_expert_prev_bboxes,
-                    self.config["matching"]["threshold"],
-                )
-
-            elif self.config["matching"]["time"] == "current":
-                matched_id = match_id(
-                    self.prev_bboxes,
-                    curr_expert_bboxes,
-                    self.config["matching"]["threshold"],
-                )
-
-            # get target idx
-            target_idxs = {}
-            for prev_id, curr_id in matched_id:
-                curr_idx = np.where(curr_expert_bboxes[:, 0] == curr_id)[0]
-                if len(curr_idx) > 0:
-                    target_idxs[curr_idx[0]] = prev_id
-
-            for target_idx, prev_id in target_idxs.items():
-                curr_expert_bboxes[target_idx, 0] = prev_id
-
-            # create new id
-            for i in range(len(curr_expert_bboxes)):
-                if i not in target_idxs.keys():
-                    curr_expert_bboxes[i, 0] = self.last_id
-                    self.last_id += 1
+        if self.config["matching"]["method"] == "previous":
+            curr_expert_bboxes = self.matcher.previous_match(
+                self.prev_bboxes,
+                selected_expert,
+                results,
+                self.config["matching"]["threshold"],
+            )
+        elif self.config["matching"]["method"] == "kmeans":
+            curr_expert_bboxes = self.matcher.kmeans_match(
+                self.learner.w,
+                selected_expert,
+                results,
+                self.config["matching"]["threshold"],
+            )
 
         self.prev_expert = selected_expert
         self.prev_bboxes = copy.deepcopy(curr_expert_bboxes)
