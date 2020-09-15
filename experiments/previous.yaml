@@ -1,0 +1,23 @@
+NAME: AAA_previous
+EVAL_DIR: eval
+
+EXPERTS:
+  - DAN
+  - DeepSort
+  - DeepTAMA
+  - Sort
+  - MOTDT
+
+DETECTOR:
+  type: fixed
+  duration: 70
+
+OFFLINE:
+  reset: True
+
+MATCHING:
+  method: previous
+  threshold: 0.5
+
+LOSS:
+  type: fn

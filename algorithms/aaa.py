@@ -46,13 +46,13 @@ class WAADelayed:
 
 
 class AAA:
-    def __init__(self, n_experts, config):
-        self.name = f"AAA_{config}"
-        self.n_experts = n_experts
+    def __init__(self, config):
+        self.name = config["NAME"]
+        self.n_experts = len(config["EXPERTS"])
         self.config = config
 
-        if self.config["detector"]["type"] == "fixed":
-            self.detector = FixedDetector(self.config["detector"]["duration"])
+        if self.config["DETECTOR"]["type"] == "fixed":
+            self.detector = FixedDetector(self.config["DETECTOR"]["duration"])
 
         self.learner = WAADelayed()
         self.matcher = IDMatcher()
@@ -65,7 +65,7 @@ class AAA:
             "external/mot_neural_solver/configs/preprocessing_cfg.yaml",
             True,
         )
-        self.is_reset_offline = self.config["offline"]["reset"]
+        self.is_reset_offline = self.config["OFFLINE"]["reset"]
 
         self.acc = mm.MOTAccumulator(auto_id=True)
 
@@ -154,7 +154,7 @@ class AAA:
                         )
                         ana = None
                     mh = mm.metrics.create()
-                    loss = loss_function(self.config["loss"]["type"], mh, acc, ana)
+                    loss = loss_function(self.config["LOSS"]["type"], mh, acc, ana)
                     gradient_losses[i] = loss
                 self.learner.update(gradient_losses, self.timer + 1)
 
@@ -174,19 +174,20 @@ class AAA:
         curr_expert_bboxes = results[selected_expert]
 
         # match id
-        if self.config["matching"]["method"] == "previous":
+        if self.config["MATCHING"]["method"] == "previous":
             curr_expert_bboxes = self.matcher.previous_match(
                 self.prev_bboxes,
                 selected_expert,
                 results,
-                self.config["matching"]["threshold"],
+                self.config["MATCHING"]["threshold"],
             )
-        elif self.config["matching"]["method"] == "kmeans":
+        elif self.config["MATCHING"]["method"] == "kmeans":
             curr_expert_bboxes = self.matcher.kmeans_match(
                 self.learner.w,
                 selected_expert,
                 results,
-                self.config["matching"]["threshold"],
+                self.config["MATCHING"]["threshold"],
+                self.config["MATCHING"]["cl_mode"],
             )
 
         self.prev_expert = selected_expert

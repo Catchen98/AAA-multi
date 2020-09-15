@@ -1,3 +1,4 @@
+import yaml
 from pathlib import Path
 
 import torch
@@ -78,26 +79,21 @@ def track_seq(experts_name, algorithm, seq):
 
 
 @do_not_print
-def get_algorithm(experts_name, duration, threshold, loss_type):
-    config = {
-        "detector": {"type": "fixed", "duration": duration},
-        "offline": {"reset": True},
-        "matching": {"method": "kmeans", "threshold": threshold},
-        "loss": {"type": loss_type},
-    }
-    algorithm = AAA(len(experts_name), config)
-    return algorithm
+def get_algorithm(config):
+    return AAA(config)
 
 
-def main(experts_name, duration, threshold, loss_type, result_dir):
+def main(config_path):
+    with open(config_path) as c:
+        config = yaml.load(c, Loader=yaml.FullLoader)
+
     datasets = {
         # "MOT15": MOT(DATASET_PATH["MOT15"]),
         # "MOT16": MOT(DATASET_PATH["MOT16"]),
         "MOT17": MOT(DATASET_PATH["MOT17"]),
     }
 
-    print(f"Duration: {duration}, Threshold: {threshold}, Loss: {loss_type}")
-    algorithm = get_algorithm(experts_name, duration, threshold, loss_type)
+    algorithm = get_algorithm(config)
 
     for dataset_name, dataset in datasets.items():
         dataset_dir = OUTPUT_PATH / dataset_name / algorithm.name
@@ -108,7 +104,7 @@ def main(experts_name, duration, threshold, loss_type, result_dir):
             else:
                 print(f"Start {seq.seq_info['seq_name']}")
                 results, ws, expert_losses, feedbacks, selected_experts = track_seq(
-                    experts_name, algorithm, seq
+                    config["EXPERTS"], algorithm, seq
                 )
                 seq.write_results(results, dataset_dir)
                 write_results(ws, dataset_dir, f"{seq.seq_info['seq_name']}_weight.txt")
@@ -123,7 +119,7 @@ def main(experts_name, duration, threshold, loss_type, result_dir):
                     dataset_dir,
                     f"{seq.seq_info['seq_name']}_selected.txt",
                 )
-        eval_tracker(algorithm.name, dataset_name, result_dir)
+        eval_tracker(algorithm.name, dataset_name, Path(config["EVAL_DIR"]))
 
 
 if __name__ == "__main__":
@@ -131,26 +127,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Run algorithms")
     parser.add_argument(
-        "-d",
-        "--duration",
-        type=int,
-        default="70",
-        help="The duration of the algorithm",
+        "-c",
+        "--config",
+        type=str,
+        default="experiments/kmeans.yaml",
+        help="The config file of the algorithm",
     )
-    parser.add_argument(
-        "-t",
-        "--threshold",
-        type=float,
-        default="0.5",
-        help="The threshold of the algorithm",
-    )
-    parser.add_argument(
-        "-l", "--loss_type", type=str, default="fn", help="The loss of the algorithm",
-    )
-
     args = parser.parse_args()
 
-    result_dir = Path("eval")
-
-    experts_name = ["DAN", "DeepSort", "DeepTAMA", "Sort", "MOTDT"]
-    main(experts_name, args.duration, args.threshold, args.loss_type, result_dir)
+    main(args.config)

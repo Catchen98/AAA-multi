@@ -1,5 +1,3 @@
-import random
-
 import numpy as np
 import pandas as pd
 
@@ -24,14 +22,10 @@ def overlap_ratio(rect1, rect2):
     return iou
 
 
-def weighted_random_choice(w):
-    pick = random.uniform(0, 1)
-    current = 0
-    for i, weight in enumerate(w):
-        current += weight
-        if current >= pick:
-            return i
-    return len(w) - 1
+def weighted_random_choice(weights):
+    selection_probs = weights / np.sum(weights)
+    selected = np.random.choice(len(weights), p=selection_probs)
+    return selected
 
 
 def convert_df(results, is_offline=False):

@@ -245,20 +245,11 @@ class IDMatcher:
             expert_idx = flatid2originid[i][0]
 
             # the boxes from an expert can not be in a cluster
-            if cl_mode == "all":
-                cl[i] += originid2flatid[expert_idx]
+            cl[i] += originid2flatid[expert_idx]
 
-                # get the maximum number of elements
-                if len(originid2flatid[expert_idx]) > min_k:
-                    min_k = len(originid2flatid[expert_idx])
-
-            elif cl_mode == "selected":
-                # only if the expert is selected expert
-                if expert_idx == selected_expert:
-                    cl[i] += originid2flatid[expert_idx]
-
-                # get the number of elements
-                min_k = len(originid2flatid[selected_expert])
+            # get the maximum number of elements
+            if len(originid2flatid[expert_idx]) > min_k:
+                min_k = len(originid2flatid[expert_idx])
 
             # when the score is lower than the threshold, the boxes can not be connected
             scores = overlap_ratio(flat_bboxes[i], flat_bboxes[i + 1 :])
