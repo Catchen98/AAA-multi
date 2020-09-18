@@ -17,7 +17,7 @@ OFFLINE:
 
 MATCHING:
   method: kmeans
-  threshold: 0.5
+  threshold: 0
   mode: vote
 
 LOSS:

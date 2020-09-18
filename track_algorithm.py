@@ -12,7 +12,6 @@ from print_manager import do_not_print
 from file_manager import ReadResult, write_results
 from evaluate_tracker import eval_tracker
 
-
 SEED = 0
 torch.manual_seed(SEED)
 np.random.seed(SEED)
@@ -91,6 +90,7 @@ def main(config_path):
         # "MOT15": MOT(DATASET_PATH["MOT15"]),
         # "MOT16": MOT(DATASET_PATH["MOT16"]),
         "MOT17": MOT(DATASET_PATH["MOT17"]),
+        # "MOT20": MOT(DATASET_PATH["MOT20"]),
     }
 
     algorithm = get_algorithm(config)
@@ -130,7 +130,7 @@ if __name__ == "__main__":
         "-c",
         "--config",
         type=str,
-        default="experiments/kmeans.yaml",
+        default="experiments/kmeans_nmvote.yaml",
         help="The config file of the algorithm",
     )
     args = parser.parse_args()

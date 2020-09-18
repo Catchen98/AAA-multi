@@ -1,4 +1,5 @@
 import random
+from collections.abc import Iterable
 import numpy as np
 import networkx as nx
 from algorithms.aaa_util import overlap_ratio
@@ -15,23 +16,31 @@ def hungarian_matching(left_nodes, right_nodes, threshold, score_fn):
     G = nx.DiGraph()
     edges = []
     for left_node in left_nodes:
-        left_id = int(left_node[0])
+        if isinstance(left_node, Iterable):
+            left_id = int(left_node[0])
+        else:
+            left_id = int(left_node)
         scores = score_fn(left_node, right_nodes)
-        valid_idxs = np.where(scores > threshold)[0]
+        valid_idxs = np.where(scores >= threshold)[0]
 
         for valid_idx in valid_idxs:
             edges.append(
                 (
                     f"p{left_id}",
                     f"c{valid_idx}",
-                    {"capacity": 1, "weight": int(scores[valid_idx] * 100)},
+                    {"capacity": 1, "weight": int((1 - scores[valid_idx]) * 100)},
                 )
             )
 
         edges.append(("s", f"p{left_id}", {"capacity": 1, "weight": 0}))
 
     for i in range(len(right_nodes)):
-        if right_nodes[i][0] == -1:
+        right_node = right_nodes[i]
+        if isinstance(right_node, Iterable):
+            right_id = right_node[0]
+        else:
+            right_id = right_node
+        if right_id == -1:
             edges.append((f"c{i}", "t", {"capacity": np.inf, "weight": 0}))
         else:
             edges.append((f"c{i}", "t", {"capacity": 1, "weight": 0}))
@@ -46,7 +55,11 @@ def hungarian_matching(left_nodes, right_nodes, threshold, score_fn):
                 if eflow == 1:
                     left_id = int(start_point[1:])
                     right_idx = int(end_point[1:])
-                    right_id = right_nodes[right_idx][0]
+                    right_node = right_nodes[right_idx]
+                    if isinstance(right_node, Iterable):
+                        right_id = right_node[0]
+                    else:
+                        right_id = right_node
                     result.append((left_id, right_id))
                     break
     return result
@@ -276,111 +289,60 @@ class IDMatcher:
             if fit_result == 1:
                 break
 
-        if mode == "dominant":
-            # sets to save cluster
-            assigned_cluster_idx = set()
-            assigned_cluster_ids = set()
-
-            # dominant order
-            weight_order = list(np.argsort(experts_w)[::-1])
-            weight_order.remove(selected_expert)
-            expert_order = [selected_expert] + weight_order
-            cluster_idxs = sorted(kmeans.clusters.keys())
-            for expert_idx in expert_order:
-                for cluster_idx in cluster_idxs:
-                    flat_ids = kmeans.clusters[cluster_idx]
-                    expert_idxs = [flatid2originid[flat_id][0] for flat_id in flat_ids]
-                    box_ids = [flatid2originid[flat_id][1] for flat_id in flat_ids]
-
-                    # check the cluster is never assigned and the expert is in the cluster
-                    if (
-                        cluster_idx not in assigned_cluster_idx
-                        and expert_idx in expert_idxs
-                    ):
-                        box_id = box_ids[expert_idxs.index(expert_idx)]
-
-                        # if the box is already assigned, give the cluster the same id as the box.
-                        if box_id in self.id_table[expert_idx].keys():
-                            cluster_id = self.id_table[expert_idx][box_id]
-
-                            # if the cluster id is already used, pass the cluster
-                            if cluster_id in assigned_cluster_ids:
-                                continue
-                        # or, give the cluster new id
-                        else:
-                            cluster_id = self.last_id
-                            self.last_id += 1
-
-                        # save the cluster id to id pool
-                        for expert_idx, box_id in zip(expert_idxs, box_ids):
-                            self.id_table[expert_idx][box_id] = cluster_id
-
-                        # save the cluster idx and id
-                        assigned_cluster_idx.add(cluster_idx)
-                        assigned_cluster_ids.add(cluster_id)
-
-            # for not assigned cluster, assign new id
-            for cluster_idx in cluster_idxs:
-                if cluster_idx not in assigned_cluster_idx:
-                    flat_ids = kmeans.clusters[cluster_idx]
-                    expert_idxs = [flatid2originid[flat_id][0] for flat_id in flat_ids]
-                    box_ids = [flatid2originid[flat_id][1] for flat_id in flat_ids]
-
-                    cluster_id = self.last_id
-                    self.last_id += 1
-
-                    # save the cluster id to id pool
-                    for expert_idx, box_id in zip(expert_idxs, box_ids):
-                        self.id_table[expert_idx][box_id] = cluster_id
-
-        elif mode == "vote" or mode == "mvote":
-            cluster_idxs = sorted(kmeans.clusters.keys())
-            left_nodes = [[cluster_idx, cluster_idx] for cluster_idx in cluster_idxs]
-            target_ids = set()
-            scores = {}
-            for cluster_idx in cluster_idxs:
-                candidates = {}
-                flat_ids = kmeans.clusters[cluster_idx]
-                for flat_id in flat_ids:
-                    expert_idx, box_id = flatid2originid[flat_id]
-                    if box_id in self.id_table[expert_idx].keys():
-                        candidate = self.id_table[expert_idx][box_id]
+        target_ids = set()
+        scores = {}
+        cluster_idxs = sorted(kmeans.clusters.keys())
+        for cluster_idx in cluster_idxs:
+            candidates = {-1: 0}
+            flat_ids = kmeans.clusters[cluster_idx]
+            for flat_id in flat_ids:
+                expert_idx, box_id = flatid2originid[flat_id]
+                candidate = self.id_table[expert_idx].get(box_id, -1)
+                if mode.endswith("vote"):
+                    if "m" in mode:
+                        ballot = experts_w[expert_idx]
                     else:
-                        candidate = -1
-                    if mode == "vote":
-                        candidates[candidate] = candidates.get(candidate, 0) + 1
+                        ballot = 1
+
+                    if "n" in mode:
+                        if candidate != -1:
+                            candidates[candidate] = (
+                                candidates.get(candidate, 0) + ballot
+                            )
                     else:
-                        candidates[candidate] = (
-                            candidates.get(candidate, 0) + experts_w[expert_idx]
-                        )
-                target_ids.update(candidates.keys())
-                scores[cluster_idx] = candidates
-            right_nodes = [[target_id, target_id] for target_id in target_ids]
+                        candidates[candidate] = candidates.get(candidate, 0) + ballot
+            target_ids.update(candidates.keys())
+            scores[cluster_idx] = candidates
+        target_ids = list(target_ids)
 
-            def score_fn(left, rights):
-                left_id = left[0]
-                results = np.zeros((len(rights)))
-                for i in range(len(rights)):
-                    right_id = rights[i][0]
-                    if right_id in scores[left_id].keys():
-                        results[i] = scores[left_id][right_id]
-                return results
+        def score_fn(left_id, right_ids):
+            results = np.ones((len(right_ids))) * -1
+            total = sum(scores[left_id].values())
+            for i in range(len(right_ids)):
+                right_id = right_ids[i]
+                if right_id in scores[left_id].keys():
+                    if total > 0:
+                        results[i] = scores[left_id][right_id] / total
+                    else:
+                        results[i] = 1
+            return results
 
-            matched_id = hungarian_matching(left_nodes, right_nodes, 0, score_fn)
-            for cluster_idx, target_id in matched_id:
-                flat_ids = kmeans.clusters[cluster_idx]
-                expert_idxs = [flatid2originid[flat_id][0] for flat_id in flat_ids]
-                box_ids = [flatid2originid[flat_id][1] for flat_id in flat_ids]
+        # find best matching
+        matched_id = hungarian_matching(cluster_idxs, target_ids, 0, score_fn)
 
-                if target_id == -1:
-                    cluster_id = self.last_id
-                    self.last_id += 1
-                else:
-                    cluster_id = target_id
+        # save the cluster id to id pool
+        for cluster_idx, target_id in matched_id:
+            flat_ids = kmeans.clusters[cluster_idx]
 
-                # save the cluster id to id pool
-                for expert_idx, box_id in zip(expert_idxs, box_ids):
-                    self.id_table[expert_idx][box_id] = cluster_id
+            if target_id == -1:
+                cluster_id = self.last_id
+                self.last_id += 1
+            else:
+                cluster_id = target_id
+
+            for flat_id in flat_ids:
+                expert_idx, box_id = flatid2originid[flat_id]
+                self.id_table[expert_idx][box_id] = cluster_id
 
         # assign cluster id to box
         modified_bboxes = results[selected_expert].copy()
@@ -388,5 +350,9 @@ class IDMatcher:
             modified_bboxes[i, 0] = self.id_table[selected_expert][
                 modified_bboxes[i, 0]
             ]
+
+        if len(modified_bboxes) > 0:
+            u, c = np.unique(modified_bboxes[:, 0], return_counts=True)
+            assert (c == 1).all(), "Duplicated ID"
 
         return modified_bboxes

@@ -60,15 +60,15 @@ class MOTSeqProcessor:
         det_df = self.det_df[self.det_df.columns[: len(DET_COL_NAMES)]]
         det_df.columns = DET_COL_NAMES
 
-        det_df["bb_left"] -= 1  # Coordinates are 1 based
-        det_df["bb_top"] -= 1
+        det_df.loc[:, "bb_left"] -= 1  # Coordinates are 1 based
+        det_df.loc[:, "bb_top"] -= 1
 
         # If id already contains an ID assignment (e.g. using tracktor output), keep it
         if len(det_df["id"].unique()) > 1:
-            det_df["tracktor_id"] = det_df["id"]
+            det_df.loc[:, "tracktor_id"] = det_df["id"]
 
         # Add each image's path (in MOT17Det data dir)
-        det_df["frame_path"] = det_df.apply(
+        det_df.loc[:, "frame_path"] = det_df.apply(
             lambda row: self.img_paths[int(row.frame) - 1], axis=1
         )
 
