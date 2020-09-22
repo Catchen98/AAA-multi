@@ -48,16 +48,28 @@
 
     # For our framework
     conda install -y black flake8 pandas seaborn
-    conda install -y pytorch torchvision cudatoolkit=10.1 -c pytorch
+    conda install -y pytorch==1.4.0 torchvision==0.5.0 cudatoolkit=10.1 -c pytorch
+    pip install opencv-python
 
     # For feedback
-    pip install torch-scatter torch-sparse pytorch-lightning pulp
-    git clone https://github.com/rusty1s/pytorch_geometric.git external/pytorch_geometric
-    cd pytorch_geometric
-    python setup.py install
+    pip install torch-scatter==latest+cu101 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
+    pip install torch-sparse==latest+cu101 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
+    pip install torch-geometric
+    pip install pytorch-lightning pulp
 
     # For evaluation
     pip install motmetrics lapsolver
+    ```
+
+    ```sh
+    # For CenterTrack
+    pip install progress pyquaternion scikit-learn==0.22.2
+
+    # For TRMOT
+    pip install lap cython_bbox
+
+    # For UMA
+    conda install -y tensorflow-gpu==1.14.0
     ```
 
 ## How to run

@@ -8,6 +8,7 @@ from experts.expert import Expert
 
 sys.path.append("external/Towards-Realtime-MOT")
 from tracker.multitracker import JDETracker
+from utils.parse_config import parse_model_cfg
 
 
 def letterbox(
@@ -36,14 +37,11 @@ class TRMOT(Expert):
         self.width = 1088
         self.height = 608
         self.opt = SimpleNamespace(**opt)
+        cfg_dict = parse_model_cfg(self.opt.cfg)
+        self.opt.img_size = [int(cfg_dict[0]["width"]), int(cfg_dict[0]["height"])]
 
     def initialize(self, seq_info):
         super(TRMOT, self).initialize(seq_info)
-
-        self.opt.img_size = [
-            int(seq_info["frame_width"]),
-            int(seq_info["frame_height"]),
-        ]
 
         self.tracker = JDETracker(self.opt)
 
@@ -58,6 +56,8 @@ class TRMOT(Expert):
         for t in online_targets:
             tlwh = t.tlwh
             tid = t.track_id
+            if tid < 0:
+                continue
             vertical = tlwh[2] / tlwh[3] > 1.6
             if tlwh[2] * tlwh[3] > self.opt.min_box_area and not vertical:
                 result.append([tid, tlwh[0], tlwh[1], tlwh[2], tlwh[3]])

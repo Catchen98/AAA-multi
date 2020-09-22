@@ -1,12 +1,13 @@
 import os
 import yaml
+import sys
 from pathlib import Path
 from datasets.mot import MOT
 from evaluate_tracker import eval_tracker
 from print_manager import do_not_print
 
 
-# @do_not_print
+@do_not_print
 def get_expert_by_name(config, name):
     if name == "CenterTrack":
         from experts.centertrack import CenterTrack as Tracker
@@ -73,7 +74,7 @@ def get_expert_by_name(config, name):
     return tracker
 
 
-# @do_not_print
+@do_not_print
 def track_seq(tracker, seq):
     return tracker.track_seq(seq)
 
@@ -81,6 +82,8 @@ def track_seq(tracker, seq):
 def main(config_path):
     with open(config_path) as c:
         config = yaml.load(c, Loader=yaml.FullLoader)
+
+    original_path = sys.path.copy()
 
     for expert_name in config["EXPERTS"]:
         datasets = {
@@ -108,6 +111,8 @@ def main(config_path):
                 dataset_name,
                 config["EVAL_DIR"],
             )
+
+        sys.path = original_path
 
 
 if __name__ == "__main__":

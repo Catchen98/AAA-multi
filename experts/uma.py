@@ -51,6 +51,9 @@ class UMA(Expert):
         return result
 
     def preprocess(self, dets):
+        if dets is None:
+            return []
+
         detection_list = []
         for row in dets:
             bbox, confidence = row[2:6], row[6]

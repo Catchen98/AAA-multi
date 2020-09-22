@@ -160,6 +160,7 @@ class CenterTrack(Expert):
         opt.pre_thresh = pre_thresh
         opt.pre_hm = True
         opt.ltrb_amodal = True
+        opt.public_det = private
 
         self.opt = parse_opt(opt)
         self.opt = update_dataset_info_and_set_heads(self.opt, 1, [544, 960], 17)
@@ -193,15 +194,28 @@ class CenterTrack(Expert):
         input_meta = {}
         input_meta["calib"] = get_default_calib(img.shape[1], img.shape[0])
 
+        detections = []
+        for det in dets:
+            bbox = [
+                float(det[1]),
+                float(det[2]),
+                float(det[1] + det[3]),
+                float(det[2] + det[4]),
+            ]
+            ct = [(det[1] + det[3]) / 2, (det[2] + det[4]) / 2]
+            detections.append(
+                {"bbox": bbox, "score": float(det[5]), "class": 1, "ct": ct}
+            )
+
         if self.frame_idx == 0:
             if self.private:
                 input_meta["pre_dets"] = []
             else:
-                input_meta["pre_dets"] = dets
+                input_meta["pre_dets"] = detections
 
         if self.private:
             input_meta["cur_dets"] = []
         else:
-            input_meta["cur_dets"] = dets
+            input_meta["cur_dets"] = detections
 
         return input_meta

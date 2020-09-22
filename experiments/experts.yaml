@@ -13,12 +13,13 @@ DATASET_DIR:
 
 DATASETS:
   - MOT15
-  - MOT16
-  - MOT17
+  # - MOT16
+  # - MOT17
   # - MOT20
 
 EXPERTS:
   - CenterTrack
+  - TRMOT
 
 DAN:
   model_path: weights/DAN/sst300_0712_83000.pth
@@ -46,10 +47,10 @@ TRMOT:
   track_buffer: 30
 
 CENTERTRACK:
-  load_model: weights/CenterTrack/mot17_fulltrain.pth
+  load_model: weights/CenterTrack/mot17_fulltrain_sc.pth
   track_thresh: 0.4
   pre_thresh: 0.5
-  private: True
+  private: False
 
 UMA:
   life_span: 10
