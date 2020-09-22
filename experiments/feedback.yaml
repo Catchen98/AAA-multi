@@ -1,0 +1,28 @@
+NAME: Tracktor
+
+EVAL_DIR: eval
+
+OUTPUT_DIR: output
+
+VIS_DIR: visualize
+
+DATASET_DIR:
+  MOT15: /home/heonsong/Disk2/Dataset/MOT/MOT15
+  MOT16: /home/heonsong/Disk2/Dataset/MOT/MOT16
+  MOT17: /home/heonsong/Disk2/Dataset/MOT/MOT17
+  MOT20: /home/heonsong/Disk2/Dataset/MOT/MOT20
+  DETRAC: /home/heonsong/Disk2/Dataset/DETRAC
+
+DATASETS:
+  - MOT15
+  - MOT16
+  - MOT17
+  # - MOT20
+
+FEEDBACK:
+  ckpt_path: weights/NeuralSolver/mot_mpnet_epoch_006.ckpt
+  frcnn_weights_path: weights/NeuralSolver/frcnn_epoch_27.pt.tar
+  reid_weights_path: weights/NeuralSolver/resnet50_market_cuhk_duke.tar-232
+  tracking_cfg_path: external/mot_neural_solver/configs/tracking_cfg.yaml
+  preprocessing_cfg_path: external/mot_neural_solver/configs/preprocessing_cfg.yaml
+  prepr_w_tracktor: True

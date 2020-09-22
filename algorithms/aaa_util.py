@@ -22,6 +22,31 @@ def overlap_ratio(rect1, rect2):
     return iou
 
 
+def goverlap_ratio(rect1, rect2):
+    if rect1.ndim == 1:
+        rect1 = rect1[None, :]
+    if rect2.ndim == 1:
+        rect2 = rect2[None, :]
+
+    left = np.maximum(rect1[:, 0], rect2[:, 0])
+    left_min = np.minimum(rect1[:, 0], rect2[:, 0])
+    right = np.minimum(rect1[:, 0] + rect1[:, 2], rect2[:, 0] + rect2[:, 2])
+    right_max = np.maximum(rect1[:, 0] + rect1[:, 2], rect2[:, 0] + rect2[:, 2])
+    top = np.maximum(rect1[:, 1], rect2[:, 1])
+    top_min = np.minimum(rect1[:, 1], rect2[:, 1])
+    bottom = np.minimum(rect1[:, 1] + rect1[:, 3], rect2[:, 1] + rect2[:, 3])
+    bottom_max = np.maximum(rect1[:, 1] + rect1[:, 3], rect2[:, 1] + rect2[:, 3])
+
+    intersect = np.maximum(0, right - left) * np.maximum(0, bottom - top)
+    union = rect1[:, 2] * rect1[:, 3] + rect2[:, 2] * rect2[:, 3] - intersect
+    iou = np.clip(intersect / union, 0, 1)
+    closure = np.maximum(0, right_max - left_min) * np.maximum(0, bottom_max - top_min)
+    g_iou = iou - (closure - union) / closure
+    g_iou = (1 + g_iou) / 2
+    g_iou = np.nan_to_num(g_iou)
+    return g_iou
+
+
 def weighted_random_choice(weights):
     selection_probs = weights / np.sum(weights)
     selected = np.random.choice(len(weights), p=selection_probs)

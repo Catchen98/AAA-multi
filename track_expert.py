@@ -1,28 +1,36 @@
+import os
+import yaml
+from pathlib import Path
 from datasets.mot import MOT
-from paths import DATASET_PATH, OUTPUT_PATH
+from evaluate_tracker import eval_tracker
 from print_manager import do_not_print
 
 
-@do_not_print
-def get_expert_by_name(name):
-    if name == "DAN":
+# @do_not_print
+def get_expert_by_name(config, name):
+    if name == "CenterTrack":
+        from experts.centertrack import CenterTrack as Tracker
+
+        tracker = Tracker(
+            config["CENTERTRACK"]["load_model"],
+            config["CENTERTRACK"]["track_thresh"],
+            config["CENTERTRACK"]["pre_thresh"],
+            config["CENTERTRACK"]["private"],
+        )
+    elif name == "DAN":
         from experts.dan import DAN as Tracker
 
-        tracker = Tracker("weights/DAN/sst300_0712_83000.pth")
+        tracker = Tracker(config["DAN"]["model_path"])
     elif name == "DeepMOT":
         from experts.deepmot import DeepMOT as Tracker
 
         tracker = Tracker(
-            "weights/DeepMOT/trainedSOTtoMOT.pth", "weights/DeepMOT/DAN.pth",
+            config["DEEPMOT"]["sot_model_path"], config["DEEPMOT"]["sst_model_path"]
         )
     elif name == "DeepSort":
         from experts.deepsort import DeepSort as Tracker
 
-        tracker = Tracker("weights/DeepSort/mars-small128.pb")
-    elif name == "IOU":
-        from experts.iou import IOU as Tracker
-
-        tracker = Tracker()
+        tracker = Tracker(config["DEEPSORT"]["model"])
     elif name == "MOTDT":
         from experts.motdt import MOTDT as Tracker
 
@@ -35,43 +43,71 @@ def get_expert_by_name(name):
         from experts.tracktor import Tracktor as Tracker
 
         tracker = Tracker(
-            "weights/Tracktor/ResNet_iter_25245.pth",
-            "weights/Tracktor/model_epoch_27.model",
-            "external/tracking_wo_bnw/experiments/cfgs/tracktor.yaml",
-            "weights/Tracktor/sacred_config.yaml",
+            config["TRACKTOR"]["reid_network_weights_path"],
+            config["TRACKTOR"]["obj_detect_model_path"],
+            config["TRACKTOR"]["tracktor_config_path"],
+            config["TRACKTOR"]["reid_config_path"],
         )
-    elif name == "VIOU":
-        from experts.viou import VIOU as Tracker
-
-        tracker = Tracker()
     elif name == "DeepTAMA":
         from experts.deeptama import DeepTAMA as Tracker
 
         tracker = Tracker()
+    elif name == "TRMOT":
+        from experts.trmot import TRMOT as Tracker
+
+        tracker = Tracker(config["TRMOT"])
+    elif name == "UMA":
+        from experts.uma import UMA as Tracker
+
+        tracker = Tracker(
+            config["UMA"]["life_span"],
+            config["UMA"]["occlusion_thres"],
+            config["UMA"]["association_thres"],
+            config["UMA"]["checkpoint"],
+            config["UMA"]["context_amount"],
+            config["UMA"]["iou"],
+        )
     else:
         raise ValueError("Invalid name")
 
     return tracker
 
 
-def main(expert_name):
-    datasets = {
-        "MOT15": MOT(DATASET_PATH["MOT15"]),
-        "MOT16": MOT(DATASET_PATH["MOT16"]),
-        "MOT17": MOT(DATASET_PATH["MOT17"]),
-        "MOT20": MOT(DATASET_PATH["MOT20"]),
-    }
-    tracker = get_expert_by_name(expert_name)
+# @do_not_print
+def track_seq(tracker, seq):
+    return tracker.track_seq(seq)
 
-    for dataset_name, dataset in datasets.items():
-        dataset_dir = OUTPUT_PATH / f"{dataset_name}/{expert_name}"
-        for seq in dataset:
-            if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
-                print(f"Pass {seq.seq_info['seq_name']}")
-            else:
-                print(f"Start {seq.seq_info['seq_name']}")
-                results = tracker.track_seq(seq)
-                seq.write_results(results, dataset_dir)
+
+def main(config_path):
+    with open(config_path) as c:
+        config = yaml.load(c, Loader=yaml.FullLoader)
+
+    for expert_name in config["EXPERTS"]:
+        datasets = {
+            dataset_name: MOT(config["DATASET_DIR"][dataset_name])
+            for dataset_name in config["DATASETS"]
+        }
+        tracker = get_expert_by_name(config, expert_name)
+
+        for dataset_name, dataset in datasets.items():
+            dataset_dir = Path(
+                os.path.join(config["OUTPUT_DIR"], dataset_name, expert_name)
+            )
+            for seq in dataset:
+                if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
+                    print(f"Pass {seq.seq_info['seq_name']}")
+                else:
+                    print(f"Start {seq.seq_info['seq_name']}")
+                    results = track_seq(tracker, seq)
+                    seq.write_results(results, dataset_dir)
+
+            eval_tracker(
+                config["DATASET_DIR"],
+                config["OUTPUT_DIR"],
+                expert_name,
+                dataset_name,
+                config["EVAL_DIR"],
+            )
 
 
 if __name__ == "__main__":
@@ -79,8 +115,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Run experts")
     parser.add_argument(
-        "-n", "--name", type=str, default="DeepMOT", help="The name of the expert"
+        "-c",
+        "--config",
+        type=str,
+        default="experiments/experts.yaml",
+        help="The config file of experts",
     )
-
     args = parser.parse_args()
-    main(args.name)
+    main(args.config)

@@ -1,13 +1,12 @@
 import os
 import pandas as pd
 
-from paths import OUTPUT_PATH
-
 
 class ReadResult:
-    def __init__(self, dataset_name, expert_name, seq_name):
+    def __init__(self, output_dir, dataset_name, expert_name, seq_name):
         self.results = pd.read_csv(
-            OUTPUT_PATH / dataset_name / expert_name / f"{seq_name}.txt", header=None
+            os.path.join(output_dir, dataset_name, expert_name, f"{seq_name}.txt"),
+            header=None,
         )
         self.results_group = self.results.groupby(0)
         self.frames = list(self.results_group.indices.keys())

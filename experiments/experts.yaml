@@ -1,0 +1,60 @@
+EVAL_DIR: eval
+
+OUTPUT_DIR: output
+
+VIS_DIR: visualize
+
+DATASET_DIR:
+  MOT15: /home/heonsong/Disk2/Dataset/MOT/MOT15
+  MOT16: /home/heonsong/Disk2/Dataset/MOT/MOT16
+  MOT17: /home/heonsong/Disk2/Dataset/MOT/MOT17
+  MOT20: /home/heonsong/Disk2/Dataset/MOT/MOT20
+  DETRAC: /home/heonsong/Disk2/Dataset/DETRAC
+
+DATASETS:
+  - MOT15
+  - MOT16
+  - MOT17
+  # - MOT20
+
+EXPERTS:
+  - CenterTrack
+
+DAN:
+  model_path: weights/DAN/sst300_0712_83000.pth
+
+DEEPMOT:
+  sot_model_path: weights/DeepMOT/trainedSOTtoMOT.pth
+  sst_model_path: weights/DeepMOT/DAN.pth
+
+DEEPSORT:
+  model: weights/DeepSort/mars-small128.pb
+
+TRACKTOR:
+  reid_network_weights_path: weights/Tracktor/ResNet_iter_25245.pth
+  obj_detect_model_path: weights/Tracktor/model_epoch_27.model
+  tracktor_config_path: external/tracking_wo_bnw/experiments/cfgs/tracktor.yaml
+  reid_config_path: weights/Tracktor/sacred_config.yaml
+
+TRMOT:
+  cfg: external/Towards-Realtime-MOT/cfg/yolov3_1088x608.cfg
+  weights: weights/TRMOT/jde.1088x608.uncertainty.pt
+  iou_thres: 0.5
+  conf_thres: 0.5
+  nms_thres: 0.4
+  min_box_area: 200
+  track_buffer: 30
+
+CENTERTRACK:
+  load_model: weights/CenterTrack/mot17_fulltrain.pth
+  track_thresh: 0.4
+  pre_thresh: 0.5
+  private: True
+
+UMA:
+  life_span: 10
+  occlusion_thres: 0.8
+  association_thres: 0.7
+  checkpoint: external/UMA-MOT/UMA-TEST/models/npair0.1-id0.1-se_block2
+  context_amount: 0.3
+  iou: 0.25

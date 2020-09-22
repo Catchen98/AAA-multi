@@ -47,7 +47,7 @@ class WAADelayed:
 
 class AAA:
     def __init__(self, config):
-        self.name = config["NAME"]
+        self.name = f"{config['MATCHING']}, {config['LOSS']}"
         self.n_experts = len(config["EXPERTS"])
         self.config = config
 
@@ -55,15 +55,15 @@ class AAA:
             self.detector = FixedDetector(self.config["DETECTOR"]["duration"])
 
         self.learner = WAADelayed()
-        self.matcher = IDMatcher()
+        self.matcher = IDMatcher(config)
 
         self.offline = NeuralSolver(
-            "weights/NeuralSolver/mot_mpnet_epoch_006.ckpt",
-            "weights/NeuralSolver/frcnn_epoch_27.pt.tar",
-            "weights/NeuralSolver/resnet50_market_cuhk_duke.tar-232",
-            "external/mot_neural_solver/configs/tracking_cfg.yaml",
-            "external/mot_neural_solver/configs/preprocessing_cfg.yaml",
-            True,
+            self.config["FEEDBACK"]["ckpt_path"],
+            self.config["FEEDBACK"]["frcnn_weights_path"],
+            self.config["FEEDBACK"]["reid_weights_path"],
+            self.config["FEEDBACK"]["tracking_cfg_path"],
+            self.config["FEEDBACK"]["preprocessing_cfg_path"],
+            self.config["FEEDBACK"]["prepr_w_tracktor"],
         )
         self.is_reset_offline = self.config["OFFLINE"]["reset"]
 
@@ -176,19 +176,14 @@ class AAA:
         # match id
         if self.config["MATCHING"]["method"] == "previous":
             curr_expert_bboxes = self.matcher.previous_match(
-                self.prev_bboxes,
-                selected_expert,
-                results,
-                self.config["MATCHING"]["threshold"],
+                self.prev_bboxes, selected_expert, results
             )
         elif self.config["MATCHING"]["method"] == "kmeans":
             curr_expert_bboxes = self.matcher.kmeans_match(
-                self.learner.w,
-                selected_expert,
-                results,
-                self.config["MATCHING"]["threshold"],
-                self.config["MATCHING"]["mode"],
+                self.learner.w, selected_expert, results
             )
+        else:
+            raise NameError("Please enter a valid matching method")
 
         self.prev_expert = selected_expert
         self.prev_bboxes = copy.deepcopy(curr_expert_bboxes)

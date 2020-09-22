@@ -12,8 +12,6 @@ import seaborn as sns
 import motmetrics as mm
 
 from algorithms.aaa_util import convert_df
-from datasets.mot import MOT
-from paths import OUTPUT_PATH, DATASET_PATH, EVAL_PATH, VIS_PATH
 from file_manager import ReadResult
 
 sns.set()
@@ -240,7 +238,7 @@ def draw_gt(dataset, result_dir):
 
 
 def draw_result(
-    dataset, tracker_name, result_dir, is_algorithm=True, duration=None,
+    output_dir, dataset, tracker_name, result_dir, is_algorithm=True, duration=None,
 ):
     if is_algorithm:
         show = ["weight", "frame"]
@@ -250,10 +248,10 @@ def draw_result(
     for seq in dataset:
         dataset_name = seq.seq_info["dataset_name"]
         seq_name = seq.seq_info["seq_name"]
-        tracker_reader = ReadResult(dataset_name, tracker_name, seq_name)
+        tracker_reader = ReadResult(output_dir, dataset_name, tracker_name, seq_name)
 
         if is_algorithm:
-            dataset_dir = OUTPUT_PATH / dataset_name / tracker_name
+            dataset_dir = output_dir / dataset_name / tracker_name
 
             weight_path = dataset_dir / f"{seq_name}_weight.txt"
             weights = pd.read_csv(weight_path, header=None).set_index(0)
@@ -363,16 +361,16 @@ def draw_result(
             plt.close()
 
 
-def draw_all_result(dataset, trackers_name, result_dir, colors, duration):
+def draw_all_result(output_dir, dataset, trackers_name, result_dir, colors, duration):
     for seq in dataset:
         dataset_name = seq.seq_info["dataset_name"]
         seq_name = seq.seq_info["seq_name"]
         trackers_reader = [
-            ReadResult(dataset_name, tracker_name, seq_name)
+            ReadResult(output_dir, dataset_name, tracker_name, seq_name)
             for tracker_name in trackers_name
         ]
 
-        dataset_dir = OUTPUT_PATH / dataset_name / trackers_name[0]
+        dataset_dir = output_dir / dataset_name / trackers_name[0]
 
         weight_path = dataset_dir / f"{seq_name}_weight.txt"
         weights = pd.read_csv(weight_path, header=None).set_index(0)
@@ -485,16 +483,13 @@ def draw_all_result(dataset, trackers_name, result_dir, colors, duration):
 
 
 def draw_weight_graph(
-    dataset, algorithm, experts_name, result_dir, duration=None,
+    output_dir, dataset, algorithm, experts_name, result_dir, duration=None,
 ):
     for seq in dataset:
         dataset_name = seq.seq_info["dataset_name"]
         seq_name = seq.seq_info["seq_name"]
 
-        if seq_name != "MOT17-09-SDP":
-            continue
-
-        dataset_dir = OUTPUT_PATH / dataset_name / algorithm
+        dataset_dir = output_dir / dataset_name / algorithm
 
         weight_path = dataset_dir / f"{seq_name}_weight.txt"
         weights = pd.read_csv(weight_path, header=None).set_index(0)
@@ -537,17 +532,14 @@ def draw_weight_graph(
 
 
 def draw_loss_graph(
-    dataset, algorithm, experts_name, result_dir, duration=None,
+    output_dir, dataset, algorithm, experts_name, result_dir, duration=None,
 ):
     for seq in dataset:
         dataset_name = seq.seq_info["dataset_name"]
         seq_name = seq.seq_info["seq_name"]
 
-        if seq_name != "MOT17-09-SDP":
-            continue
-
         experts_reader = [
-            ReadResult(dataset_name, tracker_name, seq_name)
+            ReadResult(output_dir, dataset_name, tracker_name, seq_name)
             for tracker_name in experts_name
         ]
 
@@ -685,44 +677,3 @@ def draw_rank(dataset, trackers_name, fn_scores, mota_scores, save_dir):
 
     plt.savefig(save_dir / "rank.pdf", bbox_inches="tight")
     plt.close()
-
-
-def main(eval_dir, save_dir):
-    datasets = {
-        # "MOT15": MOT(DATASET_PATH["MOT15"]),
-        # "MOT16": MOT(DATASET_PATH["MOT16"]),
-        "MOT17": MOT(DATASET_PATH["MOT17"]),
-    }
-
-    algorithm_name = "AAA_{'detector': {'type': 'fixed', 'duration': 70}, 'offline': {'reset': True}, 'matching': {'threshold': 0.5, 'time': 'current'}, 'loss': {'type': 'fn'}}"
-    experts_name = ["DAN", "DeepSort", "DeepTAMA", "Sort", "MOTDT"]
-    trackers_name = [algorithm_name] + experts_name
-    colors = sns.color_palette("hls", len(trackers_name) + 1).as_hex()[:-1]
-    for dataset_name, dataset in datasets.items():
-        # fn_scores = {}
-        # mota_scores = {}
-        # for tracker_name in trackers_name:
-        #     summary_path = eval_dir / tracker_name / f"{dataset_name}_summary.txt"
-        #     summary = pd.read_csv(summary_path, index_col=0)
-        #     fn_scores[tracker_name] = summary["num_misses"].to_dict()
-        #     mota_scores[tracker_name] = summary["mota"].to_dict()
-
-        # draw_rank(dataset, trackers_name, fn_scores, mota_scores, save_dir)
-        # draw_gt(dataset, save_dir)
-        # draw_det(dataset, save_dir)
-        # draw_detngt(dataset, save_dir)
-        # sns.set_palette(colors[1:])
-        # draw_weight_graph(dataset, algorithm_name, experts_name, save_dir, duration=70)
-        # draw_loss_graph(dataset, algorithm_name, experts_name, save_dir, duration=70)
-        draw_result(dataset, algorithm_name, save_dir, is_algorithm=False, duration=70)
-        # draw_all_result(
-        #     dataset,
-        #     [algorithm_name] + experts_name,
-        #     Path("visualize"),
-        #     colors,
-        #     duration=70,
-        # )
-
-
-if __name__ == "__main__":
-    main(EVAL_PATH, VIS_PATH)

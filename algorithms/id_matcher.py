@@ -2,10 +2,35 @@ import random
 from collections.abc import Iterable
 import numpy as np
 import networkx as nx
-from algorithms.aaa_util import overlap_ratio
+from algorithms.aaa_util import overlap_ratio, goverlap_ratio
 
 
-def hungarian_matching(left_nodes, right_nodes, threshold, score_fn):
+def overlap_distance(iou_mode, dist_mode):
+    def distance(x, y):
+        valid_x = x.copy()
+        valid_y = y.copy()
+        if len(valid_x) == 5:
+            valid_x = valid_x[1:]
+            valid_y = valid_y[:, 1:]
+
+        if iou_mode == "iou":
+            score = overlap_ratio(valid_x, valid_y)
+        elif iou_mode == "giou":
+            score = goverlap_ratio(valid_x, valid_y)
+        else:
+            raise NameError("Please enter a valid iou method")
+
+        if dist_mode == "log":
+            return -np.log(score + np.finfo(float).eps)
+        elif dist_mode == "sub":
+            return 1 - score
+        else:
+            raise NameError("Please enter a valid distanc method")
+
+    return distance
+
+
+def hungarian_matching(left_nodes, right_nodes, threshold, dist_fn):
     """
     node shoud be [id, features]
     """
@@ -20,15 +45,15 @@ def hungarian_matching(left_nodes, right_nodes, threshold, score_fn):
             left_id = int(left_node[0])
         else:
             left_id = int(left_node)
-        scores = score_fn(left_node, right_nodes)
-        valid_idxs = np.where(scores >= threshold)[0]
+        costs = dist_fn(left_node, right_nodes)
+        valid_idxs = np.where(costs < threshold)[0]
 
         for valid_idx in valid_idxs:
             edges.append(
                 (
                     f"p{left_id}",
                     f"c{valid_idx}",
-                    {"capacity": 1, "weight": int((1 - scores[valid_idx]) * 100)},
+                    {"capacity": 1, "weight": int(costs[valid_idx] * 100)},
                 )
             )
 
@@ -200,21 +225,24 @@ class COP_KMeans:
 
 
 class IDMatcher:
-    def __init__(self):
-        pass
+    def __init__(self, config):
+        self.config = config
+        self.overlap_fn = overlap_distance(
+            self.config["MATCHING"]["iou_mode"], self.config["MATCHING"]["dist_mode"]
+        )
 
     def initialize(self, n_experts):
         self.last_id = 0
         self.id_table = {i: {} for i in range(n_experts)}
 
-    def previous_match(self, prev_bboxes, selected_expert, results, threshold):
+    def previous_match(self, prev_bboxes, selected_expert, results):
         curr_expert_bboxes = results[selected_expert].copy()
 
-        def score_fn(left_node, right_nodes):
-            return overlap_ratio(left_node[1:], right_nodes[:, 1:])
-
         matched_id = hungarian_matching(
-            prev_bboxes, curr_expert_bboxes, threshold, score_fn
+            prev_bboxes,
+            curr_expert_bboxes,
+            self.config["MATCHING"]["threshold"],
+            self.overlap_fn,
         )
         modified_bboxes = curr_expert_bboxes.copy()
 
@@ -237,12 +265,7 @@ class IDMatcher:
 
         return modified_bboxes
 
-    def kmeans_match(
-        self, experts_w, selected_expert, results, threshold, mode="dominant"
-    ):
-        def iou_distance(x, y):
-            return 1 - overlap_ratio(x, y)
-
+    def kmeans_match(self, experts_w, selected_expert, results):
         # flatten results
         flatid2originid = []
         originid2flatid = []
@@ -272,10 +295,16 @@ class IDMatcher:
             if len(originid2flatid[expert_idx]) > min_k:
                 min_k = len(originid2flatid[expert_idx])
 
+            if self.config["MATCHING"]["iou_mode"] == "iou":
+                scores = overlap_ratio(flat_bboxes[i], flat_bboxes[i + 1 :])
+            elif self.config["MATCHING"]["iou_mode"] == "giou":
+                scores = goverlap_ratio(flat_bboxes[i], flat_bboxes[i + 1 :])
+            else:
+                raise NameError("Please enter a valid iou method")
+
             # when the score is lower than the threshold, the boxes can not be connected
-            scores = overlap_ratio(flat_bboxes[i], flat_bboxes[i + 1 :])
             for j, score in enumerate(scores):
-                if score <= threshold:
+                if score <= self.config["MATCHING"]["threshold"]:
                     cl[i].append(i + 1 + j)
                     cl[i + 1 + j].append(i)
 
@@ -284,7 +313,7 @@ class IDMatcher:
 
         # cluster boxes
         for k in range(min_k, len(flat_bboxes) + 1):
-            kmeans = COP_KMeans(k, ml, cl, iou_distance)
+            kmeans = COP_KMeans(k, ml, cl, self.overlap_fn)
             fit_result = kmeans.fit(flat_bboxes)
             if fit_result == 1:
                 break
@@ -298,13 +327,13 @@ class IDMatcher:
             for flat_id in flat_ids:
                 expert_idx, box_id = flatid2originid[flat_id]
                 candidate = self.id_table[expert_idx].get(box_id, -1)
-                if mode.endswith("vote"):
-                    if "m" in mode:
+                if self.config["MATCHING"]["score_mode"].endswith("vote"):
+                    if "m" in self.config["MATCHING"]["score_mode"]:
                         ballot = experts_w[expert_idx]
                     else:
                         ballot = 1
 
-                    if "n" in mode:
+                    if "n" in self.config["MATCHING"]["score_mode"]:
                         if candidate != -1:
                             candidates[candidate] = (
                                 candidates.get(candidate, 0) + ballot
@@ -315,20 +344,26 @@ class IDMatcher:
             scores[cluster_idx] = candidates
         target_ids = list(target_ids)
 
-        def score_fn(left_id, right_ids):
-            results = np.ones((len(right_ids))) * -1
+        def bullet_dist(left_id, right_ids):
+            dists = np.ones((len(right_ids))) * np.inf
             total = sum(scores[left_id].values())
             for i in range(len(right_ids)):
                 right_id = right_ids[i]
                 if right_id in scores[left_id].keys():
                     if total > 0:
-                        results[i] = scores[left_id][right_id] / total
+                        score = scores[left_id][right_id] / total
+                        if self.config["MATCHING"]["dist_mode"] == "log":
+                            dists[i] = -np.log(score + np.finfo(float).eps)
+                        elif self.config["MATCHING"]["dist_mode"] == "sub":
+                            dists[i] = 1 - score
+                        else:
+                            raise NameError("Please enter a valid distance method")
                     else:
-                        results[i] = 1
-            return results
+                        dists[i] = 0
+            return dists
 
         # find best matching
-        matched_id = hungarian_matching(cluster_idxs, target_ids, 0, score_fn)
+        matched_id = hungarian_matching(cluster_idxs, target_ids, np.inf, bullet_dist)
 
         # save the cluster id to id pool
         for cluster_idx, target_id in matched_id:

@@ -144,3 +144,6 @@ log/
 output/
 visualize/
 eval/
+
+# backup
+backup/

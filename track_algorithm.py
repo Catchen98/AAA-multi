@@ -1,3 +1,4 @@
+import os
 import yaml
 from pathlib import Path
 
@@ -7,7 +8,6 @@ import random
 
 from datasets.mot import MOT
 from algorithms.aaa import AAA
-from paths import DATASET_PATH, OUTPUT_PATH
 from print_manager import do_not_print
 from file_manager import ReadResult, write_results
 from evaluate_tracker import eval_tracker
@@ -19,10 +19,15 @@ random.seed(SEED)
 
 
 @do_not_print
-def track_seq(experts_name, algorithm, seq):
+def track_seq(output_dir, experts_name, algorithm, seq):
     algorithm.initialize(seq.seq_info)
     experts_reader = [
-        ReadResult(seq.seq_info["dataset_name"], expert_name, seq.seq_info["seq_name"])
+        ReadResult(
+            output_dir,
+            seq.seq_info["dataset_name"],
+            expert_name,
+            seq.seq_info["seq_name"],
+        )
         for expert_name in experts_name
     ]
 
@@ -83,43 +88,57 @@ def get_algorithm(config):
 
 
 def main(config_path):
-    with open(config_path) as c:
-        config = yaml.load(c, Loader=yaml.FullLoader)
+    for i in range(10):
+        with open(config_path) as c:
+            config = yaml.load(c, Loader=yaml.FullLoader)
 
-    datasets = {
-        # "MOT15": MOT(DATASET_PATH["MOT15"]),
-        # "MOT16": MOT(DATASET_PATH["MOT16"]),
-        "MOT17": MOT(DATASET_PATH["MOT17"]),
-        # "MOT20": MOT(DATASET_PATH["MOT20"]),
-    }
+        datasets = {
+            dataset_name: MOT(config["DATASET_DIR"][dataset_name])
+            for dataset_name in config["DATASETS"]
+        }
+        config["MATCHING"]["threshold"] = i / 10
 
-    algorithm = get_algorithm(config)
+        algorithm = get_algorithm(config)
 
-    for dataset_name, dataset in datasets.items():
-        dataset_dir = OUTPUT_PATH / dataset_name / algorithm.name
+        for dataset_name, dataset in datasets.items():
+            dataset_dir = Path(
+                os.path.join(config["OUTPUT_DIR"], dataset_name, algorithm.name)
+            )
 
-        for seq in dataset:
-            if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
-                print(f"Pass {seq.seq_info['seq_name']}")
-            else:
-                print(f"Start {seq.seq_info['seq_name']}")
-                results, ws, expert_losses, feedbacks, selected_experts = track_seq(
-                    config["EXPERTS"], algorithm, seq
-                )
-                seq.write_results(results, dataset_dir)
-                write_results(ws, dataset_dir, f"{seq.seq_info['seq_name']}_weight.txt")
-                write_results(
-                    expert_losses, dataset_dir, f"{seq.seq_info['seq_name']}_loss.txt",
-                )
-                write_results(
-                    feedbacks, dataset_dir, f"{seq.seq_info['seq_name']}_feedback.txt",
-                )
-                write_results(
-                    selected_experts,
-                    dataset_dir,
-                    f"{seq.seq_info['seq_name']}_selected.txt",
-                )
-        eval_tracker(algorithm.name, dataset_name, Path(config["EVAL_DIR"]))
+            for seq in dataset:
+                if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
+                    print(f"Pass {seq.seq_info['seq_name']}")
+                else:
+                    print(f"Start {seq.seq_info['seq_name']}")
+                    results, ws, expert_losses, feedbacks, selected_experts = track_seq(
+                        config["OUTPUT_DIR"], config["EXPERTS"], algorithm, seq
+                    )
+                    seq.write_results(results, dataset_dir)
+                    write_results(
+                        ws, dataset_dir, f"{seq.seq_info['seq_name']}_weight.txt"
+                    )
+                    write_results(
+                        expert_losses,
+                        dataset_dir,
+                        f"{seq.seq_info['seq_name']}_loss.txt",
+                    )
+                    write_results(
+                        feedbacks,
+                        dataset_dir,
+                        f"{seq.seq_info['seq_name']}_feedback.txt",
+                    )
+                    write_results(
+                        selected_experts,
+                        dataset_dir,
+                        f"{seq.seq_info['seq_name']}_selected.txt",
+                    )
+            eval_tracker(
+                config["DATASET_DIR"],
+                config["OUTPUT_DIR"],
+                algorithm.name,
+                dataset_name,
+                config["EVAL_DIR"],
+            )
 
 
 if __name__ == "__main__":
@@ -130,9 +149,8 @@ if __name__ == "__main__":
         "-c",
         "--config",
         type=str,
-        default="experiments/kmeans_nmvote.yaml",
+        default="experiments/kmeans.yaml",
         help="The config file of the algorithm",
     )
     args = parser.parse_args()
-
     main(args.config)

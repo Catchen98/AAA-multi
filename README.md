@@ -48,12 +48,7 @@
 
     # For our framework
     conda install -y black flake8 pandas seaborn
-    conda install -y pytorch torchvision cudatoolkit=10.1 -c pytorch-nightly
-    conda install -y tensorflow-gpu
-
-    # For experts
-    conda install -y pillow pyyaml cython matplotlib numba scikit-image scipy
-    conda install -y -c conda-forge opencv filterpy
+    conda install -y pytorch torchvision cudatoolkit=10.1 -c pytorch
 
     # For feedback
     pip install torch-scatter torch-sparse pytorch-lightning pulp
