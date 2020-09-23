@@ -195,17 +195,18 @@ class CenterTrack(Expert):
         input_meta["calib"] = get_default_calib(img.shape[1], img.shape[0])
 
         detections = []
-        for det in dets:
-            bbox = [
-                float(det[1]),
-                float(det[2]),
-                float(det[1] + det[3]),
-                float(det[2] + det[4]),
-            ]
-            ct = [(det[1] + det[3]) / 2, (det[2] + det[4]) / 2]
-            detections.append(
-                {"bbox": bbox, "score": float(det[5]), "class": 1, "ct": ct}
-            )
+        if dets is not None:
+            for det in dets:
+                bbox = [
+                    float(det[1]),
+                    float(det[2]),
+                    float(det[1] + det[3]),
+                    float(det[2] + det[4]),
+                ]
+                ct = [(det[1] + det[3]) / 2, (det[2] + det[4]) / 2]
+                detections.append(
+                    {"bbox": bbox, "score": float(det[5]), "class": 1, "ct": ct}
+                )
 
         if self.frame_idx == 0:
             if self.private:

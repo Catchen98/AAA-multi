@@ -1,6 +1,5 @@
 import os
 import yaml
-import sys
 from pathlib import Path
 from datasets.mot import MOT
 from evaluate_tracker import eval_tracker
@@ -26,7 +25,9 @@ def get_expert_by_name(config, name):
         from experts.deepmot import DeepMOT as Tracker
 
         tracker = Tracker(
-            config["DEEPMOT"]["sot_model_path"], config["DEEPMOT"]["sst_model_path"]
+            config["DEEPMOT"]["obj_detect_weights_path"],
+            config["DEEPMOT"]["tracktor_config_path"],
+            config["DEEPMOT"]["obj_detect_config_path"],
         )
     elif name == "DeepSort":
         from experts.deepsort import DeepSort as Tracker
@@ -79,40 +80,35 @@ def track_seq(tracker, seq):
     return tracker.track_seq(seq)
 
 
-def main(config_path):
+def main(config_path, expert_name):
     with open(config_path) as c:
-        config = yaml.load(c, Loader=yaml.FullLoader)
+        config = yaml.load(c)
 
-    original_path = sys.path.copy()
+    datasets = {
+        dataset_name: MOT(config["DATASET_DIR"][dataset_name])
+        for dataset_name in config["DATASETS"]
+    }
+    tracker = get_expert_by_name(config, expert_name)
 
-    for expert_name in config["EXPERTS"]:
-        datasets = {
-            dataset_name: MOT(config["DATASET_DIR"][dataset_name])
-            for dataset_name in config["DATASETS"]
-        }
-        tracker = get_expert_by_name(config, expert_name)
+    for dataset_name, dataset in datasets.items():
+        dataset_dir = Path(
+            os.path.join(config["OUTPUT_DIR"], dataset_name, expert_name)
+        )
+        for seq in dataset:
+            if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
+                print(f"Pass {seq.seq_info['seq_name']}")
+            else:
+                print(f"Start {seq.seq_info['seq_name']}")
+                results = track_seq(tracker, seq)
+                seq.write_results(results, dataset_dir)
 
-        for dataset_name, dataset in datasets.items():
-            dataset_dir = Path(
-                os.path.join(config["OUTPUT_DIR"], dataset_name, expert_name)
-            )
-            for seq in dataset:
-                if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
-                    print(f"Pass {seq.seq_info['seq_name']}")
-                else:
-                    print(f"Start {seq.seq_info['seq_name']}")
-                    results = track_seq(tracker, seq)
-                    seq.write_results(results, dataset_dir)
-
-            eval_tracker(
-                config["DATASET_DIR"],
-                config["OUTPUT_DIR"],
-                expert_name,
-                dataset_name,
-                config["EVAL_DIR"],
-            )
-
-        sys.path = original_path
+        eval_tracker(
+            config["DATASET_DIR"],
+            config["OUTPUT_DIR"],
+            expert_name,
+            dataset_name,
+            config["EVAL_DIR"],
+        )
 
 
 if __name__ == "__main__":
@@ -126,5 +122,8 @@ if __name__ == "__main__":
         default="experiments/experts.yaml",
         help="The config file of experts",
     )
+    parser.add_argument(
+        "-n", "--name", type=str, default="Tracktor", help="The name of expert",
+    )
     args = parser.parse_args()
-    main(args.config)
+    main(args.config, args.name)

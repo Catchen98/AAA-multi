@@ -24,9 +24,6 @@ class DAN(Expert):
         elif self.dataset_name == "MOT15":
             self.choice = (0, 0, 4, 4, 5, 4)
             init_test_mot15()
-        elif self.dataset_name == "MOT17":
-            self.choice = (0, 0, 4, 0, 3, 3)
-            init_test_mot17()
         elif self.dataset_name == "DETRAC":
             self.choice = TrackerConfig.get_ua_choice()
             init_test_ua()
@@ -69,11 +66,11 @@ class DAN(Expert):
     def preprocess(self, img_path, dets):
         img = cv2.imread(img_path)
 
-        if self.min_confidence is not None:
-            dets = dets[dets[:, 6] > self.min_confidence, :]
+        # if self.min_confidence is not None:
+        #     dets = dets[dets[:, 6] > self.min_confidence, :]
 
-        if len(dets) > config["max_object"]:
-            dets = dets[: config["max_object"], :]
+        # if len(dets) > config["max_object"]:
+        #     dets = dets[:, :config["max_object"]]
 
         h, w, _ = img.shape
         dets[:, [2, 4]] /= float(w)

@@ -15,9 +15,10 @@ DATASET_DIR:
 
 DATASETS:
   - MOT15
-  - MOT16
-  - MOT17
-  - MOT20
+  # - MOT16
+  # - MOT17
+  # - MOT20
+  # - DETRAC
 
 FEEDBACK:
   ckpt_path: weights/NeuralSolver/mot_mpnet_epoch_006.ckpt
@@ -28,11 +29,11 @@ FEEDBACK:
   prepr_w_tracktor: True
 
 EXPERTS:
+  - CenterTrack
   - DAN
-  - DeepSort
-  - DeepTAMA
-  - Sort
-  - MOTDT
+  - DeepMOT
+  - Tracktor
+  - UMA
 
 DETECTOR:
   type: fixed

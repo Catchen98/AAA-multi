@@ -30,30 +30,39 @@
     ```sh
     mkdir external
     cd external
+    # CenterTrack
+    git clone https://github.com/xingyizhou/CenterTrack.git
+    # DAN
     git clone https://github.com/shijieS/SST.git
-    git clone --branch obsolete https://github.com/yihongXU/deepMOT.git
-    git clone https://github.com/songheony/deep_sort.git
-    git clone https://github.com/yyc9268/Deep-TAMA
-    git clone https://github.com/songheony/MOTDT
+    # DeepMOT
+    git clone https://gitlab.inria.fr/yixu/deepmot.git
+    # SORT
     git clone https://github.com/abewley/sort.git
+    # Tracktor
     git clone https://github.com/phil-bergmann/tracking_wo_bnw.git
+    # UMA
+    git clone https://github.com/yinjunbo/UMA-MOT.git
+    # MPNTracker
     git clone https://github.com/songheony/mot_neural_solver.git
     ```
 
 2. Install necessary libraries with Anaconda 3
 
+    For our framework
+
     ```sh
     conda create -n [ENV_NAME] python=3.6
     conda activate [ENV_NAME]
 
-    # For our framework
+    # For AAA
     conda install -y black flake8 pandas seaborn
-    conda install -y pytorch==1.4.0 torchvision==0.5.0 cudatoolkit=10.1 -c pytorch
+    conda install -y pytorch torchvision cudatoolkit=[CUDA_VERSION] -c pytorch
     pip install opencv-python
 
     # For feedback
-    pip install torch-scatter==latest+cu101 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
-    pip install torch-sparse==latest+cu101 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
+    # Please refer https://github.com/rusty1s/pytorch_geometric to install torch-scatter, torch-sparse, torch-geometric.
+    pip install torch-scatter==latest+[CUDA_VERSION] -f https://pytorch-geometric.com/whl/torch-[TORCH_VERSION].html
+    pip install torch-sparse==latest+[CUDA_VERSION] -f https://pytorch-geometric.com/whl/torch-[TORCH_VERSION].html
     pip install torch-geometric
     pip install pytorch-lightning pulp
 
@@ -61,15 +70,77 @@
     pip install motmetrics lapsolver
     ```
 
+    For CenterTrack
+
     ```sh
-    # For CenterTrack
-    pip install progress pyquaternion scikit-learn==0.22.2
+    cd external/CenterTrack
+    conda create --name CenterTrack python=3.6
+    conda activate CenterTrack
+    conda install -y pytorch==1.4.0 torchvision==0.5.0 cudatoolkit=[CUDA_VERSION] -c pytorch
+    pip install -r requirements.txt
 
-    # For TRMOT
-    pip install lap cython_bbox
+    # For DCNv2
+    cd src/lib/model/networks
+    git clone https://github.com/CharlesShang/DCNv2.git
+    cd DCNv2
+    ./make.sh
+    ```
 
-    # For UMA
+    For UMA
+
+    ```sh
+    cd external/UMA-MOT
+    conda create --name UMA python=3.6
+    conda activate UMA
     conda install -y tensorflow-gpu==1.14.0
+    pip install -r requirements.txt
+
+    # For our framework
+    conda install -y pyyaml pandas
+    pip install motmetrics
+    ```
+
+    For Tracktor
+
+    ```sh
+    cd external/tracking_wo_bnw
+    conda create --name Tracktor python=3.6
+    conda activate Tracktor
+    conda install -y pytorch==1.4.0 torchvision==0.5.0 cudatoolkit=[CUDA_VERSION] -c pytorch
+    pip install opencv-python cycler matplotlib
+
+    # For our framework
+    conda install -y pyyaml pandas
+    pip install motmetrics
+    ```
+
+    For DeepMOT
+
+    ```sh
+    cd external/deepMOT
+    conda create --name DeepMOT python=3.6
+    conda activate DeepMOT
+    conda install -y pytorch=0.4.1 torchvision cuda92 -c pytorch
+    pip install opencv-python==4.0.1.* PyYAML==4.2b1 easydict matplotlib
+
+    # For our framework
+    conda install -y pandas
+    pip install motmetrics
+    ```
+
+    For DAT
+
+    ```sh
+    cd external/SST
+    conda create --name DAN python=3.6
+    conda activate DAN
+    conda install -y pytorch=0.4.1 torchvision cuda92 -c pytorch
+
+    pip install opencv-python==3.4.0.12 PyYAML==3.12 matplotlib
+
+    # For our framework
+    conda install -y pandas
+    pip install motmetrics
     ```
 
 ## How to run
