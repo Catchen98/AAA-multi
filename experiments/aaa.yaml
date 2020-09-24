@@ -47,7 +47,8 @@ MATCHING:
   threshold: 0.5
   score_mode: vote
   iou_mode: giou
-  dist_mode: log
+  dist_mode: sub
 
 LOSS:
+  delayed: False
   type: fn

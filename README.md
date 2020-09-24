@@ -65,6 +65,7 @@
     pip install torch-sparse==latest+[CUDA_VERSION] -f https://pytorch-geometric.com/whl/torch-[TORCH_VERSION].html
     pip install torch-geometric
     pip install pytorch-lightning pulp
+    conda install scikit-image
 
     # For evaluation
     pip install motmetrics lapsolver

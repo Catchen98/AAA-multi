@@ -94,31 +94,13 @@ def loss_function(loss_type, mh, acc, ana):
             acc, ana=ana, metrics=["num_false_positives", "num_misses", "num_switches"],
         )
         loss = sum(summary.iloc[0].values)
-    elif loss_type == "sigmoid-sum":
-        loss = 0
-        for frame in acc.mot_events.index.unique(level=0):
-            summary = mh.compute(
-                acc.mot_events.loc[frame],
-                ana=ana,
-                metrics=["num_false_positives", "num_misses", "num_switches"],
-            )
-            met_sum = sum(summary.iloc[0].values)
-            sigmoid = 1 / (1 + np.exp(-met_sum))
-            loss += sigmoid
-    elif loss_type == "mota":
-        summary = mh.compute(acc, ana=ana, metrics=["mota"],)
-        mota = summary.iloc[0].values[0]
-        loss = 1 - mota / 100
-    elif loss_type == "fmota":
-        loss = 0
-        for frame in acc.mot_events.index.unique(level=0):
-            summary = mh.compute(acc.mot_events.loc[frame], ana=ana, metrics=["mota"])
-            mota = summary.iloc[0].values[0]
-            if np.isinf(mota):
-                continue
-            loss += 1 - mota / 100
     elif loss_type == "fn":
         summary = mh.compute(acc, ana=ana, metrics=["num_misses"],)
         fn = summary.iloc[0].values[0]
         loss = fn
+    elif loss_type == "notid":
+        summary = mh.compute(
+            acc, ana=ana, metrics=["num_false_positives", "num_misses"],
+        )
+        loss = sum(summary.iloc[0].values)
     return loss

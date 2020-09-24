@@ -76,7 +76,6 @@ class AAA:
         self.detector.initialize(seq_info)
         self.learner.initialize(self.n_experts)
         self.matcher.initialize(self.n_experts)
-        self.prev_expert = None
         self.prev_bboxes = None
 
         self.reset_offline()
@@ -111,8 +110,10 @@ class AAA:
                     self.experts_results[i] = frame_result
 
         # detect anchor frame
-        if self.detector.detect(img_path, dets, results):
+        is_anchor = self.detector.detect(img_path, dets, results)
 
+        # update weight
+        if is_anchor:
             # try to receive feedback
             try:
                 feedback = self.offline.track(self.seq_info, self.img_paths, self.dets)
@@ -156,7 +157,12 @@ class AAA:
                     mh = mm.metrics.create()
                     loss = loss_function(self.config["LOSS"]["type"], mh, acc, ana)
                     gradient_losses[i] = loss
-                self.learner.update(gradient_losses, self.timer + 1)
+
+                if self.config["LOSS"]["delayed"]:
+                    dt = self.timer + 1
+                else:
+                    dt = 1
+                self.learner.update(gradient_losses, dt)
 
                 self.reset_history()
                 if self.is_reset_offline:
@@ -170,22 +176,23 @@ class AAA:
             gradient_losses = None
 
         # select expert
-        selected_expert = weighted_random_choice(self.learner.w)
-        curr_expert_bboxes = results[selected_expert]
+        if self.frame_idx == 0 or is_anchor or self.config["LOSS"]["delayed"]:
+            self.selected_expert = weighted_random_choice(self.learner.w)
+
+        curr_expert_bboxes = results[self.selected_expert]
 
         # match id
         if self.config["MATCHING"]["method"] == "previous":
             curr_expert_bboxes = self.matcher.previous_match(
-                self.prev_bboxes, selected_expert, results
+                self.prev_bboxes, self.selected_expert, results
             )
         elif self.config["MATCHING"]["method"] == "kmeans":
             curr_expert_bboxes = self.matcher.kmeans_match(
-                self.learner.w, selected_expert, results
+                self.learner.w, self.selected_expert, results
             )
         else:
             raise NameError("Please enter a valid matching method")
 
-        self.prev_expert = selected_expert
         self.prev_bboxes = copy.deepcopy(curr_expert_bboxes)
 
         return (
@@ -193,5 +200,5 @@ class AAA:
             self.learner.w,
             gradient_losses,
             feedback,
-            selected_expert,
+            self.selected_expert,
         )
