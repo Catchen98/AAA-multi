@@ -2,13 +2,11 @@
 
 ## Experts
 
+* [CenterTrack](https://arxiv.org/abs/2004.01177)[<https://github.com/xingyizhou/CenterTrack>]
 * [DAN](https://arxiv.org/abs/1810.11780)[<https://github.com/shijieS/SST>]
-* [DeepMOT](https://arxiv.org/abs/1906.06618)[<https://github.com/yihongXU/deepMOT/>]
-* [DeepSORT](https://arxiv.org/abs/1812.00442)[<https://github.com/nwojke/deep_sort>]
-* [Deep-TAMA](https://arxiv.org/abs/1907.00831)[<https://github.com/yyc9268/Deep-TAMA>]
-* [MOTDT](https://arxiv.org/abs/1809.04427)[<https://github.com/longcw/MOTDT>]
-* [SORT](https://arxiv.org/abs/1602.00763)[<https://github.com/abewley/sort>]
+* [DeepMOT](https://arxiv.org/abs/1906.06618)[<https://gitlab.inria.fr/yixu/deepmot>]
 * [Tracktor](https://arxiv.org/abs/1903.05625)[<https://github.com/phil-bergmann/tracking_wo_bnw>]
+* [UMA](https://arxiv.org/abs/2003.11291)[<https://github.com/yinjunbo/UMA-MOT>]
 
 ## Feedback
 
