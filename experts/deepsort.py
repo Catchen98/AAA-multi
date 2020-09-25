@@ -6,9 +6,9 @@ from experts.expert import Expert
 
 sys.path.append("external/deep_sort")
 from application_util import preprocessing
-from tools import create_box_encoder
+from tools.generate_detections import create_box_encoder
 from deep_sort import nn_matching
-from deepsort.detection import Detection
+from deep_sort.detection import Detection
 from deep_sort.tracker import Tracker
 
 
@@ -88,7 +88,7 @@ class DeepSORT(Expert):
         detection_list = []
         for row in detections_out:
             bbox, confidence, feature = row[2:6], row[6], row[10:]
-            if bbox[3] < self.min_height:
+            if bbox[3] < self.min_detection_height:
                 continue
             detection_list.append(Detection(bbox, confidence, feature))
         return detection_list

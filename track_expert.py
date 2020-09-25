@@ -44,7 +44,9 @@ def get_expert_by_name(config, name):
     elif name == "MOTDT":
         from experts.motdt import MOTDT as Tracker
 
-        tracker = Tracker()
+        tracker = Tracker(
+            config["MOTDT"]["min_height"], config["MOTDT"]["min_det_score"]
+        )
     elif name == "Sort":
         from experts.esort import ESort as Tracker
 

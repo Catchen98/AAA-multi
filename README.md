@@ -121,10 +121,25 @@
     conda create --name DeepSORT python=3.6
     conda activate DeepSORT
     conda install -y tensorflow-gpu==1.14.0
+    conda install -y scikit-learn pillow
     pip install opencv-python
 
     # For our framework
     conda install -y pandas pyyaml
+    pip install motmetrics
+    ```
+
+    For MOTDT
+
+    ```sh
+    cd external/MOTDT
+    conda create --name MOTDT python=3.6
+    conda activate MOTDT
+    conda install -y pytorch=0.4.1 torchvision cuda92 -c pytorch
+    pip install opencv-python Cython scipy==1.1.0 numba scikit-learn=0.22.2 h5py
+
+    # For our framework
+    conda install -y pyyaml pandas
     pip install motmetrics
     ```
 

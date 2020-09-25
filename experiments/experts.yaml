@@ -34,6 +34,10 @@ DEEPSORT:
   max_cosine_distance: 0.2
   nn_budget: null
 
+MOTDT:
+  min_height: 0
+  min_det_score: null
+
 TRACKTOR:
   reid_network_weights_path: weights/Tracktor/ResNet_iter_25245.pth
   obj_detect_model_path: weights/Tracktor/model_epoch_27.model
