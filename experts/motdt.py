@@ -41,6 +41,9 @@ class MOTDT(Expert):
         im = imread(img_path)  # rgb
         im = im[:, :, ::-1]  # bgr
 
+        if dets is None:
+            return im, [], []
+
         tlwhs = dets[:, 2:6]
         scores = dets[:, 6]
 
