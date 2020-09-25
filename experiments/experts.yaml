@@ -13,9 +13,9 @@ DATASET_DIR:
 
 DATASETS:
   - MOT15
-  # - MOT16
-  # - MOT17
-  # - MOT20
+  - MOT16
+  - MOT17
+  - MOT20
   # - DETRAC
 
 DAN:
@@ -25,6 +25,14 @@ DEEPMOT:
   obj_detect_weights_path: weights/DeepMOT/deepMOT_Tracktor.pth
   tracktor_config_path: external/deepmot/test_tracktor/experiments/cfgs/tracktor_pub_reid.yaml
   obj_detect_config_path: external/deepmot/test_tracktor/output/fpn/res101/mot_2017_train/voc_init_iccv19/config.yaml
+
+DEEPSORT:
+  model: weights/DeepSort/mars-small128.pb
+  min_confidence: 0.0
+  min_detection_height: 0
+  nms_max_overlap: 1.0
+  max_cosine_distance: 0.2
+  nn_budget: null
 
 TRACKTOR:
   reid_network_weights_path: weights/Tracktor/ResNet_iter_25245.pth

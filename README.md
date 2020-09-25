@@ -85,31 +85,18 @@
     ./make.sh
     ```
 
-    For UMA
+    For DAT
 
     ```sh
-    cd external/UMA-MOT
-    conda create --name UMA python=3.6
-    conda activate UMA
-    conda install -y tensorflow-gpu==1.14.0
-    pip install -r requirements.txt
+    cd external/SST
+    conda create --name DAN python=3.6
+    conda activate DAN
+    conda install -y pytorch=0.4.1 torchvision cuda92 -c pytorch
+
+    pip install opencv-python==3.4.0.12 PyYAML==3.12 matplotlib
 
     # For our framework
-    conda install -y pyyaml pandas
-    pip install motmetrics
-    ```
-
-    For Tracktor
-
-    ```sh
-    cd external/tracking_wo_bnw
-    conda create --name Tracktor python=3.6
-    conda activate Tracktor
-    conda install -y pytorch==1.4.0 torchvision==0.5.0 cudatoolkit=[CUDA_VERSION] -c pytorch
-    pip install opencv-python cycler matplotlib
-
-    # For our framework
-    conda install -y pyyaml pandas
+    conda install -y pandas
     pip install motmetrics
     ```
 
@@ -127,18 +114,45 @@
     pip install motmetrics
     ```
 
-    For DAT
+    For DeepSORT
 
     ```sh
-    cd external/SST
-    conda create --name DAN python=3.6
-    conda activate DAN
-    conda install -y pytorch=0.4.1 torchvision cuda92 -c pytorch
-
-    pip install opencv-python==3.4.0.12 PyYAML==3.12 matplotlib
+    cd external/deep_sort
+    conda create --name DeepSORT python=3.6
+    conda activate DeepSORT
+    conda install -y tensorflow-gpu==1.14.0
+    pip install opencv-python
 
     # For our framework
-    conda install -y pandas
+    conda install -y pandas pyyaml
+    pip install motmetrics
+    ```
+
+    For Tracktor
+
+    ```sh
+    cd external/tracking_wo_bnw
+    conda create --name Tracktor python=3.6
+    conda activate Tracktor
+    conda install -y pytorch==1.4.0 torchvision==0.5.0 cudatoolkit=[CUDA_VERSION] -c pytorch
+    pip install opencv-python cycler matplotlib
+
+    # For our framework
+    conda install -y pyyaml pandas
+    pip install motmetrics
+    ```
+
+    For UMA
+
+    ```sh
+    cd external/UMA-MOT
+    conda create --name UMA python=3.6
+    conda activate UMA
+    conda install -y tensorflow-gpu==1.14.0
+    pip install -r requirements.txt
+
+    # For our framework
+    conda install -y pyyaml pandas
     pip install motmetrics
     ```
 

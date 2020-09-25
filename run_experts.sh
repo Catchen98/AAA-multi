@@ -1,5 +1,5 @@
 eval "$(conda shell.bash hook)"
-experts=("CenterTrack" "DAN" "DeepMOT" "Tracktor" "UMA")
+experts=("CenterTrack" "DAN" "DeepMOT" "DeepSORT" "Tracktor" "UMA")
 for (( i=0; i<${#experts[@]}; i++ )); do
     echo "${experts[$i]}"
     conda activate ${experts[$i]}

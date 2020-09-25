@@ -2,6 +2,7 @@ import os
 import yaml
 from pathlib import Path
 from datasets.mot import MOT
+from datasets.detrac import DETRAC
 from evaluate_tracker import eval_tracker
 from print_manager import do_not_print
 
@@ -29,10 +30,17 @@ def get_expert_by_name(config, name):
             config["DEEPMOT"]["tracktor_config_path"],
             config["DEEPMOT"]["obj_detect_config_path"],
         )
-    elif name == "DeepSort":
-        from experts.deepsort import DeepSort as Tracker
+    elif name == "DeepSORT":
+        from experts.deepsort import DeepSORT as Tracker
 
-        tracker = Tracker(config["DEEPSORT"]["model"])
+        tracker = Tracker(
+            config["DEEPSORT"]["model"],
+            config["DEEPSORT"]["min_confidence"],
+            config["DEEPSORT"]["min_detection_height"],
+            config["DEEPSORT"]["nms_max_overlap"],
+            config["DEEPSORT"]["max_cosine_distance"],
+            config["DEEPSORT"]["nn_budget"],
+        )
     elif name == "MOTDT":
         from experts.motdt import MOTDT as Tracker
 
@@ -86,6 +94,8 @@ def main(config_path, expert_name):
 
     datasets = {
         dataset_name: MOT(config["DATASET_DIR"][dataset_name])
+        if dataset_name.startswith("MOT")
+        else DETRAC(config["DATASET_DIR"][dataset_name])
         for dataset_name in config["DATASETS"]
     }
     tracker = get_expert_by_name(config, expert_name)

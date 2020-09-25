@@ -145,6 +145,8 @@ class DETRAC:
                     det_path = os.path.join(
                         det_dir, det_name, f"{sequence_basename}_Det_{det_name}.txt",
                     )
+                    if not os.path.exists(det_path):
+                        continue
                     sequence_name = f"{sequence_basename}_Det_{det_name}"
                     seq_info = {
                         "dataset_name": os.path.basename(self.root_dir),
@@ -155,7 +157,7 @@ class DETRAC:
                     }
                     self.sequence_names[data_type].append(sequence_name)
                     self.sequences[data_type].append(
-                        DETRACDataReader(seq_info, image_dir, det_path)
+                        DETRACDataReader(seq_info, image_dir, det_path, None)
                     )
 
         self.all_sequence_names = sum(self.sequence_names.values(), [])
