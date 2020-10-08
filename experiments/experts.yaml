@@ -12,10 +12,10 @@ DATASET_DIR:
   DETRAC: /home/heonsong/Disk2/Dataset/DETRAC
 
 DATASETS:
-  - MOT15
+  # - MOT15
   - MOT16
   - MOT17
-  - MOT20
+  # - MOT20
   # - DETRAC
 
 DAN:
@@ -50,6 +50,17 @@ CENTERTRACK:
   pre_thresh: 0.5
   private: False
 
+GCNNMATCH:
+  model_path: weights/GCNNMatch/epoch_11.pth
+  frames_look_back: 30
+  match_thres: 0.25
+  det_conf_thres: 0.0
+  distance_limit: 200
+  min_height: 10
+  fp_look_back: 15
+  fp_recent_frame_limit: 10
+  fp_min_times_seen: 3
+
 UMA:
   life_span: 10
   occlusion_thres: 0.8
@@ -57,3 +68,8 @@ UMA:
   checkpoint: external/UMA-MOT/UMA-TEST/models/npair0.1-id0.1-se_block2
   context_amount: 0.3
   iou: 0.25
+  TRACKTOR:
+    reid_network_weights_path: weights/Tracktor/ResNet_iter_25245.pth
+    obj_detect_model_path: weights/Tracktor/model_epoch_27.model
+    tracktor_config_path: external/tracking_wo_bnw/experiments/cfgs/tracktor.yaml
+    reid_config_path: weights/Tracktor/sacred_config.yaml

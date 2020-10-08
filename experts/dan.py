@@ -70,7 +70,7 @@ class DAN(Expert):
             dets = dets[dets[:, 6] > self.min_confidence, :]
 
         if len(dets) > config["max_object"]:
-            dets = dets[:config["max_object"], :]
+            dets = dets[: config["max_object"], :]
 
         h, w, _ = img.shape
         dets[:, [2, 4]] /= float(w)

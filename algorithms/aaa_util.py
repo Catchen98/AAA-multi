@@ -89,18 +89,22 @@ def convert_df(results, is_offline=False):
 
 
 def loss_function(loss_type, mh, acc, ana):
-    if loss_type == "sum":
+    if loss_type == "w_id":
         summary = mh.compute(
             acc, ana=ana, metrics=["num_false_positives", "num_misses", "num_switches"],
+        )
+        loss = sum(summary.iloc[0].values)
+    elif loss_type == "wo_id":
+        summary = mh.compute(
+            acc, ana=ana, metrics=["num_false_positives", "num_misses"],
         )
         loss = sum(summary.iloc[0].values)
     elif loss_type == "fn":
         summary = mh.compute(acc, ana=ana, metrics=["num_misses"],)
         fn = summary.iloc[0].values[0]
         loss = fn
-    elif loss_type == "notid":
-        summary = mh.compute(
-            acc, ana=ana, metrics=["num_false_positives", "num_misses"],
-        )
-        loss = sum(summary.iloc[0].values)
     return loss
+
+
+def minmax(x):
+    return (x - np.min(x)) / (np.max(x) - np.min(x))

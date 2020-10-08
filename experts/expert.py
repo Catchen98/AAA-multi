@@ -1,5 +1,4 @@
 import numpy as np
-from print_manager import do_not_print
 
 
 class Expert:
@@ -13,7 +12,6 @@ class Expert:
     def track(self, img_path, dets, *args, **kwargs):
         self.frame_idx += 1
 
-    @do_not_print
     def track_seq(self, seq):
         self.initialize(seq.seq_info)
 

@@ -41,6 +41,10 @@ def get_expert_by_name(config, name):
             config["DEEPSORT"]["max_cosine_distance"],
             config["DEEPSORT"]["nn_budget"],
         )
+    elif name == "GCNNMatch":
+        from experts.gcnnmatch import GCNNMatch as Tracker
+
+        tracker = Tracker(config["GCNNMATCH"])
     elif name == "MOTDT":
         from experts.motdt import MOTDT as Tracker
 
@@ -78,6 +82,7 @@ def get_expert_by_name(config, name):
             config["UMA"]["checkpoint"],
             config["UMA"]["context_amount"],
             config["UMA"]["iou"],
+            config["UMA"]["TRACKTOR"],
         )
     else:
         raise ValueError("Invalid name")

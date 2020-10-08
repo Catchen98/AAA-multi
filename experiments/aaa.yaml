@@ -30,10 +30,9 @@ FEEDBACK:
 
 EXPERTS:
   - CenterTrack
-  - DAN
   - DeepMOT
+  - MOTDT
   - Tracktor
-  - UMA
 
 DETECTOR:
   type: fixed
@@ -43,12 +42,11 @@ OFFLINE:
   reset: True
 
 MATCHING:
-  method: kmeans
+  method: anchor
   threshold: 0.5
-  score_mode: vote
+  score_mode: mvote
   iou_mode: giou
-  dist_mode: sub
 
 LOSS:
   delayed: False
-  type: fn
+  type: w_id

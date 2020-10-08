@@ -129,6 +129,23 @@
     pip install motmetrics
     ```
 
+    For GCNNMatch
+
+    ```sh
+    cd external/GCNNMatch
+    conda create --name GCNNMatch python=3.7
+    conda activate GCNNMatch
+    conda install pytorch==1.4.0 torchvision==0.5.0 cudatoolkit=10.1 -c pytorch
+    conda install tensorflow-gpu
+    pip install opencv-python torch-geometric scipy matplotlib Pillow
+    pip install torch-sparse==latest+cu101 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
+    pip install torch-scatter==latest+cu101 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
+
+    # For our framework
+    conda install -y pyyaml pandas
+    pip install motmetrics
+    ```
+
     For MOTDT
 
     ```sh
@@ -150,7 +167,7 @@
     conda create --name Tracktor python=3.6
     conda activate Tracktor
     conda install -y pytorch==1.4.0 torchvision==0.5.0 cudatoolkit=[CUDA_VERSION] -c pytorch
-    pip install opencv-python cycler matplotlib
+    pip install opencv-python==4.0.1.24 cycler matplotlib
 
     # For our framework
     conda install -y pyyaml pandas
@@ -165,6 +182,10 @@
     conda activate UMA
     conda install -y tensorflow-gpu==1.14.0
     pip install -r requirements.txt
+
+    # For Tracktor
+    conda install -y pytorch==1.4.0 torchvision==0.5.0 cudatoolkit=[CUDA_VERSION] -c pytorch
+    pip install cycler opencv-python==4.0.1.24
 
     # For our framework
     conda install -y pyyaml pandas

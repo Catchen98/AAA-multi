@@ -5,7 +5,18 @@ import networkx as nx
 from algorithms.aaa_util import overlap_ratio, goverlap_ratio
 
 
-def overlap_distance(iou_mode, dist_mode):
+def proper_overlap(x, y, mode):
+    if mode == "iou":
+        score = overlap_ratio(x, y)
+    elif mode == "giou":
+        score = goverlap_ratio(x, y)
+    else:
+        raise NameError("Please enter a valid iou method")
+
+    return score
+
+
+def overlap_distance(iou_mode):
     def distance(x, y):
         valid_x = x.copy()
         valid_y = y.copy()
@@ -13,19 +24,8 @@ def overlap_distance(iou_mode, dist_mode):
             valid_x = valid_x[1:]
             valid_y = valid_y[:, 1:]
 
-        if iou_mode == "iou":
-            score = overlap_ratio(valid_x, valid_y)
-        elif iou_mode == "giou":
-            score = goverlap_ratio(valid_x, valid_y)
-        else:
-            raise NameError("Please enter a valid iou method")
-
-        if dist_mode == "log":
-            return -np.log(score + np.finfo(float).eps)
-        elif dist_mode == "sub":
-            return 1 - score
-        else:
-            raise NameError("Please enter a valid distanc method")
+        score = proper_overlap(valid_x, valid_y, iou_mode)
+        return 1 - score
 
     return distance
 
@@ -227,43 +227,54 @@ class COP_KMeans:
 class IDMatcher:
     def __init__(self, config):
         self.config = config
-        self.overlap_fn = overlap_distance(
-            self.config["MATCHING"]["iou_mode"], self.config["MATCHING"]["dist_mode"]
-        )
+        self.overlap_fn = overlap_distance(self.config["MATCHING"]["iou_mode"])
 
     def initialize(self, n_experts):
         self.last_id = 0
         self.id_table = {i: {} for i in range(n_experts)}
 
-    def previous_match(self, prev_bboxes, selected_expert, results):
-        curr_expert_bboxes = results[selected_expert].copy()
+    def get_id(self, expert_id, box_id):
+        if box_id not in self.id_table[expert_id].keys():
+            self.id_table[expert_id][box_id] = self.last_id
+            self.last_id += 1
+        return self.id_table[expert_id][box_id]
 
+    def default_match(self, selected_expert, results):
+        curr_expert_bboxes = results[selected_expert].copy()
+        for i in range(len(curr_expert_bboxes)):
+            box_id = curr_expert_bboxes[i, 0]
+            curr_expert_bboxes[i, 0] = self.get_id(selected_expert, box_id)
+        return curr_expert_bboxes
+
+    def anchor_match(self, prev_selected_expert, selected_expert, results):
+        curr_expert_bboxes = results[selected_expert].copy()
+        prev_expert_bboxes = results[prev_selected_expert].copy()
         matched_id = hungarian_matching(
-            prev_bboxes,
+            prev_expert_bboxes,
             curr_expert_bboxes,
             self.config["MATCHING"]["threshold"],
             self.overlap_fn,
         )
-        modified_bboxes = curr_expert_bboxes.copy()
-
-        # get target idx
-        target_idxs = {}
-        for prev_id, curr_id in matched_id:
-            curr_idx = np.where(modified_bboxes[:, 0] == curr_id)[0]
-            if len(curr_idx) > 0:
-                target_idxs[curr_idx[0]] = prev_id
 
         # assign id
-        for target_idx, prev_id in target_idxs.items():
-            modified_bboxes[target_idx, 0] = prev_id
+        assinged_id = set()
+        for prev_id, curr_id in matched_id:
+            self.id_table[selected_expert][curr_id] = self.get_id(
+                prev_selected_expert, prev_id
+            )
+            assinged_id.add(curr_id)
 
         # create new id
-        for i in range(len(modified_bboxes)):
-            if i not in target_idxs.keys():
-                modified_bboxes[i, 0] = self.last_id
-                self.last_id += 1
+        for i in range(len(curr_expert_bboxes)):
+            box_id = curr_expert_bboxes[i, 0]
+            if (
+                box_id not in assinged_id
+                and box_id in self.id_table[selected_expert].keys()
+            ):
+                self.id_table[selected_expert].pop(box_id)
+            curr_expert_bboxes[i, 0] = self.get_id(selected_expert, box_id)
 
-        return modified_bboxes
+        return curr_expert_bboxes
 
     def kmeans_match(self, experts_w, selected_expert, results):
         # flatten results
@@ -295,12 +306,11 @@ class IDMatcher:
             if len(originid2flatid[expert_idx]) > min_k:
                 min_k = len(originid2flatid[expert_idx])
 
-            if self.config["MATCHING"]["iou_mode"] == "iou":
-                scores = overlap_ratio(flat_bboxes[i], flat_bboxes[i + 1 :])
-            elif self.config["MATCHING"]["iou_mode"] == "giou":
-                scores = goverlap_ratio(flat_bboxes[i], flat_bboxes[i + 1 :])
-            else:
-                raise NameError("Please enter a valid iou method")
+            scores = proper_overlap(
+                flat_bboxes[i],
+                flat_bboxes[i + 1 :],
+                self.config["MATCHING"]["iou_mode"],
+            )
 
             # when the score is lower than the threshold, the boxes can not be connected
             for j, score in enumerate(scores):
@@ -352,12 +362,7 @@ class IDMatcher:
                 if right_id in scores[left_id].keys():
                     if total > 0:
                         score = scores[left_id][right_id] / total
-                        if self.config["MATCHING"]["dist_mode"] == "log":
-                            dists[i] = -np.log(score + np.finfo(float).eps)
-                        elif self.config["MATCHING"]["dist_mode"] == "sub":
-                            dists[i] = 1 - score
-                        else:
-                            raise NameError("Please enter a valid distance method")
+                        dists[i] = 1 - score
                     else:
                         dists[i] = 0
             return dists
@@ -380,14 +385,10 @@ class IDMatcher:
                 self.id_table[expert_idx][box_id] = cluster_id
 
         # assign cluster id to box
-        modified_bboxes = results[selected_expert].copy()
-        for i in range(len(modified_bboxes)):
-            modified_bboxes[i, 0] = self.id_table[selected_expert][
-                modified_bboxes[i, 0]
+        curr_expert_bboxes = results[selected_expert].copy()
+        for i in range(len(curr_expert_bboxes)):
+            curr_expert_bboxes[i, 0] = self.id_table[selected_expert][
+                curr_expert_bboxes[i, 0]
             ]
 
-        if len(modified_bboxes) > 0:
-            u, c = np.unique(modified_bboxes[:, 0], return_counts=True)
-            assert (c == 1).all(), "Duplicated ID"
-
-        return modified_bboxes
+        return curr_expert_bboxes
