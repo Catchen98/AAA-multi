@@ -29,11 +29,14 @@ class WAADelayed:
     gradient_losses should be n
     """
 
-    def update(self, gradient_losses, dt):
+    def update(self, gradient_losses, dt, norm):
         # check the number of element
         assert len(gradient_losses) == len(self.w)
 
-        losses = minmax(gradient_losses) * dt
+        if norm:
+            losses = minmax(gradient_losses) * dt
+        else:
+            losses = gradient_losses * dt
 
         for i in range(1, dt + 1):
             self.real_D += i
@@ -49,7 +52,7 @@ class WAADelayed:
 
 class AAA:
     def __init__(self, config):
-        self.name = f"{config['MATCHING']}, {config['LOSS']}"
+        self.name = f"{config['MATCHING']}, {config['DETECTOR']}, {config['OFFLINE']}, {config['LOSS']}"
         self.n_experts = len(config["EXPERTS"])
         self.config = config
 
@@ -59,14 +62,15 @@ class AAA:
         self.learner = WAADelayed()
         self.matcher = IDMatcher(config)
 
-        self.offline = NeuralSolver(
-            self.config["FEEDBACK"]["ckpt_path"],
-            self.config["FEEDBACK"]["frcnn_weights_path"],
-            self.config["FEEDBACK"]["reid_weights_path"],
-            self.config["FEEDBACK"]["tracking_cfg_path"],
-            self.config["FEEDBACK"]["preprocessing_cfg_path"],
-            self.config["FEEDBACK"]["prepr_w_tracktor"],
-        )
+        if not self.config["OFFLINE"]["use_gt"]:
+            self.offline = NeuralSolver(
+                self.config["FEEDBACK"]["ckpt_path"],
+                self.config["FEEDBACK"]["frcnn_weights_path"],
+                self.config["FEEDBACK"]["reid_weights_path"],
+                self.config["FEEDBACK"]["tracking_cfg_path"],
+                self.config["FEEDBACK"]["preprocessing_cfg_path"],
+                self.config["FEEDBACK"]["prepr_w_tracktor"],
+            )
         self.is_reset_offline = self.config["OFFLINE"]["reset"]
 
         self.acc = mm.MOTAccumulator(auto_id=True)
@@ -85,17 +89,19 @@ class AAA:
     def reset_offline(self):
         self.img_paths = []
         self.dets = []
+        self.gts = []
 
     def reset_history(self):
         self.timer = -1
         self.experts_results = [[] for _ in range(self.n_experts)]
 
-    def track(self, img_path, dets, results):
+    def track(self, img_path, dets, gts, results):
         self.frame_idx += 1
         self.timer += 1
 
         self.img_paths.append(img_path)
         self.dets.append(dets)
+        self.gts.append(gts)
 
         # save experts' result
         for i, result in enumerate(results):
@@ -116,10 +122,19 @@ class AAA:
         # update weight
         if is_anchor:
             # try to receive feedback
-            try:
-                feedback = self.offline.track(self.seq_info, self.img_paths, self.dets)
-            except Exception:
-                feedback = None
+            if not self.config["OFFLINE"]["use_gt"]:
+                try:
+                    feedback = self.offline.track(
+                        self.seq_info, self.img_paths, self.dets
+                    )
+                except Exception:
+                    feedback = None
+            else:
+                feedback = []
+                for i, gt in enumerate(self.gts):
+                    for t in gt:
+                        feedback.append([i + 1, t[1], t[2], t[3], t[4], t[5]])
+                feedback = np.array(feedback)
 
             # update weight
             if feedback is not None:
@@ -163,7 +178,7 @@ class AAA:
                     dt = self.timer + 1
                 else:
                     dt = 1
-                self.learner.update(gradient_losses, dt)
+                self.learner.update(gradient_losses, dt, self.config["LOSS"]["norm"])
 
                 self.reset_history()
                 if self.is_reset_offline:
@@ -185,25 +200,17 @@ class AAA:
         if self.frame_idx == 0 or is_anchor or self.config["LOSS"]["delayed"]:
             self.selected_expert = weighted_random_choice(self.learner.w)
 
-        curr_expert_bboxes = results[self.selected_expert]
-
-        if self.config["LOSS"]["delayed"] or is_anchor:
-            # match id
-            if self.config["MATCHING"]["method"] == "anchor":
-                curr_expert_bboxes = self.matcher.anchor_match(
-                    prev_selected_expert, self.selected_expert, results
-                )
-            elif self.config["MATCHING"]["method"] == "kmeans":
-                curr_expert_bboxes = self.matcher.kmeans_match(
-                    self.learner.w, self.selected_expert, results
-                )
-            else:
-                raise NameError("Please enter a valid matching method")
-
-        else:
-            curr_expert_bboxes = self.matcher.default_match(
-                self.selected_expert, results
+        # match id
+        if self.config["MATCHING"]["method"] == "anchor":
+            curr_expert_bboxes = self.matcher.anchor_match(
+                prev_selected_expert, self.selected_expert, results
             )
+        elif self.config["MATCHING"]["method"] == "kmeans":
+            curr_expert_bboxes = self.matcher.kmeans_match(
+                self.learner.w, self.selected_expert, results
+            )
+        else:
+            raise NameError("Please enter a valid matching method")
 
         if len(curr_expert_bboxes) > 0:
             u, c = np.unique(curr_expert_bboxes[:, 0], return_counts=True)

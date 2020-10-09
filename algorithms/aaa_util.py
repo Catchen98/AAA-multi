@@ -99,10 +99,6 @@ def loss_function(loss_type, mh, acc, ana):
             acc, ana=ana, metrics=["num_false_positives", "num_misses"],
         )
         loss = sum(summary.iloc[0].values)
-    elif loss_type == "fn":
-        summary = mh.compute(acc, ana=ana, metrics=["num_misses"],)
-        fn = summary.iloc[0].values[0]
-        loss = fn
     return loss
 
 

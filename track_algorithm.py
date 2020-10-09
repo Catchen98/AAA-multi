@@ -37,13 +37,13 @@ def track_seq(output_dir, experts_name, algorithm, seq):
     feedbacks = []
     selected_experts = []
 
-    for frame_idx, (img_path, dets, _) in enumerate(seq):
+    for frame_idx, (img_path, dets, gts) in enumerate(seq):
         expert_results = []
         for reader in experts_reader:
             expert_results.append(reader.get_result_by_frame(frame_idx))
 
         result, w, expert_loss, feedback, selected_expert = algorithm.track(
-            img_path, dets, expert_results
+            img_path, dets, gts, expert_results
         )
         if len(result) > 0:
             frame_result = np.zeros((result.shape[0], result.shape[1] + 1))

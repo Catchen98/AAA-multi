@@ -14,9 +14,9 @@ DATASET_DIR:
   DETRAC: /home/heonsong/Disk2/Dataset/DETRAC
 
 DATASETS:
-  - MOT15
-  # - MOT16
-  # - MOT17
+  # - MOT15
+  - MOT16
+  - MOT17
   # - MOT20
   # - DETRAC
 
@@ -33,13 +33,15 @@ EXPERTS:
   - DeepMOT
   - MOTDT
   - Tracktor
+  - UMA
 
 DETECTOR:
   type: fixed
-  duration: 70
+  duration: 50
 
 OFFLINE:
   reset: True
+  use_gt: False
 
 MATCHING:
   method: anchor
@@ -50,3 +52,4 @@ MATCHING:
 LOSS:
   delayed: False
   type: w_id
+  norm: True

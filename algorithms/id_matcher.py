@@ -247,32 +247,24 @@ class IDMatcher:
         return curr_expert_bboxes
 
     def anchor_match(self, prev_selected_expert, selected_expert, results):
-        curr_expert_bboxes = results[selected_expert].copy()
-        prev_expert_bboxes = results[prev_selected_expert].copy()
-        matched_id = hungarian_matching(
-            prev_expert_bboxes,
-            curr_expert_bboxes,
-            self.config["MATCHING"]["threshold"],
-            self.overlap_fn,
-        )
-
-        # assign id
-        assinged_id = set()
-        for prev_id, curr_id in matched_id:
-            self.id_table[selected_expert][curr_id] = self.get_id(
-                prev_selected_expert, prev_id
+        if prev_selected_expert != selected_expert and prev_selected_expert is not None:
+            curr_expert_bboxes = results[selected_expert].copy()
+            prev_expert_bboxes = results[prev_selected_expert].copy()
+            matched_id = hungarian_matching(
+                prev_expert_bboxes,
+                curr_expert_bboxes,
+                self.config["MATCHING"]["threshold"],
+                self.overlap_fn,
             )
-            assinged_id.add(curr_id)
 
-        # create new id
-        for i in range(len(curr_expert_bboxes)):
-            box_id = curr_expert_bboxes[i, 0]
-            if (
-                box_id not in assinged_id
-                and box_id in self.id_table[selected_expert].keys()
-            ):
-                self.id_table[selected_expert].pop(box_id)
-            curr_expert_bboxes[i, 0] = self.get_id(selected_expert, box_id)
+            # match id
+            for prev_id, curr_id in matched_id:
+                self.id_table[selected_expert][curr_id] = self.get_id(
+                    prev_selected_expert, prev_id
+                )
+
+        # assing id
+        curr_expert_bboxes = self.default_match(selected_expert, results)
 
         return curr_expert_bboxes
 
@@ -370,7 +362,7 @@ class IDMatcher:
         # find best matching
         matched_id = hungarian_matching(cluster_idxs, target_ids, np.inf, bullet_dist)
 
-        # save the cluster id to id pool
+        # match the cluster id to id pool
         for cluster_idx, target_id in matched_id:
             flat_ids = kmeans.clusters[cluster_idx]
 
@@ -384,11 +376,7 @@ class IDMatcher:
                 expert_idx, box_id = flatid2originid[flat_id]
                 self.id_table[expert_idx][box_id] = cluster_id
 
-        # assign cluster id to box
-        curr_expert_bboxes = results[selected_expert].copy()
-        for i in range(len(curr_expert_bboxes)):
-            curr_expert_bboxes[i, 0] = self.id_table[selected_expert][
-                curr_expert_bboxes[i, 0]
-            ]
+        # assign id
+        curr_expert_bboxes = self.default_match(selected_expert, results)
 
         return curr_expert_bboxes
