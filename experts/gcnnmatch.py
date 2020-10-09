@@ -11,11 +11,19 @@ import torch.nn.functional as F
 from torch_geometric.data import Data, DataListLoader
 from torch_geometric.nn import DataParallel
 
+from PIL import Image
+import yaml
+
 from experts.expert import Expert
 
 sys.path.append("external/GCNNMatch")
 from utils import hungarian
 from network.complete_net import completeNet
+
+from tracking_wo_bnw.src.tracktor.frcnn_fpn import FRCNN_FPN
+from tracking_wo_bnw.src.tracktor.oracle_tracker import OracleTracker
+from tracking_wo_bnw.src.tracktor.reid.resnet import resnet50
+from tracking_wo_bnw.src.tracktor.tracker import Tracker
 
 
 def build_graph(
@@ -175,8 +183,106 @@ def build_graph(
         return data
 
 
+class Tracktor(Expert):
+    def __init__(
+        self,
+        reid_network_weights_path,
+        obj_detect_model_path,
+        tracktor_config_path,
+        reid_config_path,
+    ):
+        super(Tracktor, self).__init__("Tracktor")
+
+        with open(tracktor_config_path) as config_file:
+            tracktor = yaml.unsafe_load(config_file)["tracktor"]
+
+        with open(reid_config_path) as config_file:
+            reid = yaml.unsafe_load(config_file)["reid"]
+
+        # set all seeds
+        torch.manual_seed(tracktor["seed"])
+        torch.cuda.manual_seed(tracktor["seed"])
+        np.random.seed(tracktor["seed"])
+        torch.backends.cudnn.deterministic = True
+
+        ##########################
+        # Initialize the modules #
+        ##########################
+
+        # object detection
+        obj_detect = FRCNN_FPN(num_classes=2)
+        obj_detect.load_state_dict(
+            torch.load(
+                obj_detect_model_path, map_location=lambda storage, loc: storage,
+            )
+        )
+
+        obj_detect.eval()
+        obj_detect.cuda()
+
+        # reid
+        reid_network = resnet50(pretrained=False, **reid["cnn"])
+        reid_network.load_state_dict(
+            torch.load(
+                reid_network_weights_path, map_location=lambda storage, loc: storage
+            )
+        )
+        reid_network.eval()
+        reid_network.cuda()
+
+        # tracktor
+        if "oracle" in tracktor:
+            self.tracker = OracleTracker(
+                obj_detect, reid_network, tracktor["tracker"], tracktor["oracle"]
+            )
+        else:
+            self.tracker = Tracker(obj_detect, reid_network, tracktor["tracker"])
+
+        self.transforms = ToTensor()
+
+    def initialize(self, seq_info):
+        super(Tracktor, self).initialize(seq_info)
+        self.tracker.reset()
+
+    def track(self, img_path, dets):
+        super(Tracktor, self).track(img_path, dets)
+
+        frame = self.preprocess(img_path, dets)
+        with torch.no_grad():
+            self.tracker.step(frame)
+
+        results = []
+        for i, track in self.tracker.get_results().items():
+            if self.frame_idx in track.keys():
+                bb = track[self.frame_idx]
+                x1 = bb[0]
+                y1 = bb[1]
+                w = bb[2] - bb[0]
+                h = bb[3] - bb[1]
+                score = bb[4]
+                results.append([i, x1 + 1, y1 + 1, w + 1, h + 1, score])
+        return results
+
+    def preprocess(self, img_path, dets):
+        img = Image.open(img_path).convert("RGB")
+        img = self.transforms(img)
+
+        sample = {}
+        sample["img"] = img.unsqueeze(0)
+        if dets is not None:
+            bb = np.zeros((len(dets), 5), dtype=np.float32)
+            bb[:, 0:2] = dets[:, 2:4] - 1
+            bb[:, 2:4] = dets[:, 2:4] + dets[:, 4:6] - 1
+            bb[:, 4] = dets[:, 6]
+            sample["dets"] = torch.FloatTensor([det[:4] for det in bb]).unsqueeze(0)
+        else:
+            sample["dets"] = torch.FloatTensor([]).unsqueeze(0)
+        sample["img_path"] = img_path
+        return sample
+
+
 class GCNNMatch(Expert):
-    def __init__(self, options):
+    def __init__(self, config):
         super(GCNNMatch, self).__init__("GCNNMatch")
 
         # load model
@@ -184,19 +290,24 @@ class GCNNMatch(Expert):
         device = torch.device("cuda")
         self.model = self.model.to(device)
         self.model = DataParallel(self.model)
-        self.model.load_state_dict(
-            torch.load(options["model_path"])["model_state_dict"]
-        )
+        self.model.load_state_dict(torch.load(config["model_path"])["model_state_dict"])
         self.model.eval()
 
-        self.frames_look_back = options["frames_look_back"]
-        self.match_thres = options["match_thres"]
-        self.det_conf_thres = options["det_conf_thres"]
-        self.distance_limit = options["distance_limit"]
-        self.min_height = options["min_height"]
-        self.fp_look_back = options["fp_look_back"]
-        self.fp_recent_frame_limit = options["fp_recent_frame_limit"]
-        self.fp_min_times_seen = options["fp_min_times_seen"]
+        self.frames_look_back = config["frames_look_back"]
+        self.match_thres = config["match_thres"]
+        self.det_conf_thres = config["det_conf_thres"]
+        self.distance_limit = config["distance_limit"]
+        self.min_height = config["min_height"]
+        self.fp_look_back = config["fp_look_back"]
+        self.fp_recent_frame_limit = config["fp_recent_frame_limit"]
+        self.fp_min_times_seen = config["fp_min_times_seen"]
+
+        self.tracktor = Tracktor(
+            config["TRACKTOR"]["reid_network_weights_path"],
+            config["TRACKTOR"]["obj_detect_model_path"],
+            config["TRACKTOR"]["tracktor_config_path"],
+            config["TRACKTOR"]["reid_config_path"],
+        )
 
     def initialize(self, seq_info):
         super(GCNNMatch, self).initialize(seq_info)
@@ -213,13 +324,14 @@ class GCNNMatch(Expert):
 
         self.transform = ToTensor()
 
+        self.tracktor.initialize(seq_info)
+
     def track(self, img_path, dets):
         super(GCNNMatch, self).track(img_path, dets)
 
         self.images_path.append(img_path)
 
-        if dets is None:
-            dets = []
+        dets = self.preprocess(img_path, dets)
 
         data_list = []
         # Give IDs to the first frame
@@ -457,3 +569,13 @@ class GCNNMatch(Expert):
                 result.append([t[1], t[2], t[3], t[4], t[5]])
 
         return result
+
+    def preprocess(self, img_path, dets):
+        filtered_dets = self.tracktor.track(img_path, dets)
+
+        detections = []
+        for det in filtered_dets:
+            detections.append(
+                [self.frame_idx + 1, det[0], det[1], det[2], det[3], det[4], det[5]]
+            )
+        return detections

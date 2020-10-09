@@ -85,7 +85,7 @@
     ./make.sh
     ```
 
-    For DAT
+    For DAN
 
     ```sh
     cd external/SST
@@ -137,7 +137,7 @@
     conda activate GCNNMatch
     conda install pytorch==1.4.0 torchvision==0.5.0 cudatoolkit=10.1 -c pytorch
     conda install tensorflow-gpu
-    pip install opencv-python torch-geometric scipy matplotlib Pillow
+    pip install opencv-python==4.0.1.24 torch-geometric scipy matplotlib Pillow
     pip install torch-sparse==latest+cu101 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
     pip install torch-scatter==latest+cu101 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
 

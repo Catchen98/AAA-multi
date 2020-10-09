@@ -60,6 +60,11 @@ GCNNMATCH:
   fp_look_back: 15
   fp_recent_frame_limit: 10
   fp_min_times_seen: 3
+  TRACKTOR:
+    reid_network_weights_path: weights/Tracktor/ResNet_iter_25245.pth
+    obj_detect_model_path: weights/Tracktor/model_epoch_27.model
+    tracktor_config_path: external/tracking_wo_bnw/experiments/cfgs/tracktor.yaml
+    reid_config_path: weights/Tracktor/sacred_config.yaml
 
 UMA:
   life_span: 10
