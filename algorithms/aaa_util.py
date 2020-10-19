@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import motmetrics as mm
 
 
 def overlap_ratio(rect1, rect2):
@@ -88,18 +89,48 @@ def convert_df(results, is_offline=False):
     return df
 
 
-def loss_function(loss_type, mh, acc, ana):
-    if loss_type == "w_id":
-        summary = mh.compute(
-            acc, ana=ana, metrics=["num_false_positives", "num_misses", "num_switches"],
+def frame_loss(df_map, frame_list):
+    df = df_map.noraw
+    fp = df[df["Type"] == "FP"]
+    fn = df[df["Type"] == "MISS"]
+    ids = df[df["Type"] == "SWITCH"]
+
+    result = np.zeros((len(frame_list), 3))
+    for i, frame in enumerate(frame_list):
+        result[i] = [
+            len(fp.Type.get(frame, [])),
+            len(fn.Type.get(frame, [])),
+            len(ids.Type.get(frame, [])),
+        ]
+
+    return result
+
+
+def eval_results(seq_info, gt, pred):
+    if (
+        seq_info["dataset_name"] == "MOT16"
+        or seq_info["dataset_name"] == "MOT17"
+        or seq_info["dataset_name"] == "MOT20"
+    ):
+        acc, ana = mm.utils.CLEAR_MOT_M(
+            gt, pred, seq_info["ini_path"], "iou", distth=0.5, vflag="",
         )
-        loss = sum(summary.iloc[0].values)
-    elif loss_type == "wo_id":
-        summary = mh.compute(
-            acc, ana=ana, metrics=["num_false_positives", "num_misses"],
-        )
-        loss = sum(summary.iloc[0].values)
-    return loss
+    else:
+        acc = mm.utils.compare_to_groundtruth(gt, pred, "iou", distth=0.5)
+        ana = None
+
+    df_map = mm.metrics.events_to_df_map(acc.events)
+    return acc, ana, df_map
+
+
+def get_summary(acc, ana):
+    mh = mm.metrics.create()
+    summary = mh.compute(
+        acc,
+        ana=ana,
+        metrics=["num_false_positives", "num_misses", "num_switches", "mota"],
+    )
+    return summary.iloc[0].values
 
 
 def minmax(x):

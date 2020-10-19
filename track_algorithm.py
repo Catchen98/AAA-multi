@@ -18,7 +18,7 @@ np.random.seed(SEED)
 random.seed(SEED)
 
 
-@do_not_print
+# @do_not_print
 def track_seq(output_dir, experts_name, algorithm, seq):
     algorithm.initialize(seq.seq_info)
     experts_reader = [

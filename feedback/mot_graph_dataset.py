@@ -1,14 +1,20 @@
-import sys
 from feedback.seq_process import MOTSeqProcessor
-
-sys.path.append("external/mot_neural_solver/src")
-from mot_neural_solver.data.mot_graph import MOTGraph
+from feedback.mot_graph import MOTGraph
 
 
 class MOTGraphDataset:
-    def __init__(self, dataset_params, img_paths, det_df, seq_info, cnn_model=None):
+    def __init__(
+        self,
+        dataset_params,
+        img_paths,
+        det_df,
+        seq_info,
+        cnn_model=None,
+        reid_embeddings=None,
+        node_feats=None,
+        start_frame=0,
+    ):
         self.dataset_params = dataset_params
-        self.cnn_model = cnn_model
         self.seq_info = seq_info
 
         self.seq = MOTSeqProcessor(img_paths, det_df, seq_info)
@@ -16,6 +22,12 @@ class MOTGraphDataset:
         self.seq_det_dfs = {seq_info["seq_name"]: self.seq_det_df}
         self.seq_info_dicts = {seq_info["seq_name"]: self.seq_det_df.seq_info_dict}
         self.seq_names = [seq_info["seq_name"]]
+
+        self.cnn_model = cnn_model
+
+        self.reid_embeddings = reid_embeddings
+        self.node_feats = node_feats
+        self.start_frame = start_frame
 
         # Update each sequence's meatinfo with step sizes
         self._compute_seq_step_sizes()
@@ -70,13 +82,15 @@ class MOTGraphDataset:
             start_frame=start_frame,
             end_frame=end_frame,
             ensure_end_is_in=ensure_end_is_in,
-            max_frame_dist=max_frame_dist,
             cnn_model=self.cnn_model,
+            max_frame_dist=max_frame_dist,
             inference_mode=inference_mode,
         )
 
         # Construct the Graph Network's input
-        mot_graph.construct_graph_object()
+        mot_graph.construct_graph_object(
+            self.reid_embeddings, self.node_feats, self.start_frame
+        )
 
         if return_full_object:
             return mot_graph

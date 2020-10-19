@@ -2,10 +2,12 @@ import sys
 import yaml
 from PIL import Image
 import numpy as np
+from numpy import pad
 import pandas as pd
+from skimage.io import imread
 
 import torch
-from torchvision.transforms import ToTensor
+from torchvision.transforms import Compose, Resize, ToTensor, Normalize
 
 from feedback.mot_graph_dataset import MOTGraphDataset
 
@@ -41,6 +43,39 @@ TRACKING_OUT_COLS = [
     "z",
 ]
 
+import warnings
+
+warnings.simplefilter("ignore", pd.core.common.SettingWithCopyWarning)
+
+
+def extract(frame_img, bbox, frame_height, frame_width, transforms):
+    bb_left = bbox[0]
+    bb_top = bbox[1]
+    bb_right = bbox[2]
+    bb_bot = bbox[3]
+    # Crop the bounding box, and pad it if necessary to
+    bb_img = frame_img[
+        int(max(0, bb_top)) : int(max(0, bb_bot)),
+        int(max(0, bb_left)) : int(max(0, bb_right)),
+    ]
+    x_height_pad = np.abs(bb_top - max(bb_top, 0)).astype(int)
+    y_height_pad = np.abs(bb_bot - min(bb_bot, frame_height)).astype(int)
+
+    x_width_pad = np.abs(bb_left - max(bb_left, 0)).astype(int)
+    y_width_pad = np.abs(bb_right - min(bb_right, frame_width)).astype(int)
+
+    bb_img = pad(
+        bb_img,
+        ((x_height_pad, y_height_pad), (x_width_pad, y_width_pad), (0, 0)),
+        mode="mean",
+    )
+
+    bb_img = Image.fromarray(bb_img)
+    if transforms is not None:
+        bb_img = transforms(bb_img)
+
+    return bb_img
+
 
 class CustomMPNTracker(MPNTracker):
     def __init__(self, *args, **kwargs):
@@ -67,7 +102,7 @@ class CustomMPNTracker(MPNTracker):
             start_frame=start_frame,
             end_frame=end_frame,
             return_full_object=True,
-            ensure_end_is_in=True,
+            ensure_end_is_in=False,
             max_frame_dist=max_frame_dist,
             inference_mode=True,
         )
@@ -126,6 +161,8 @@ class NeuralSolver:
         tracking_cfg_path,
         preprocessing_cfg_path,
         prepr_w_tracktor,
+        use_gt,
+        pre_cnn,
     ):
         self.name = "MPNTracker"
         with open(tracking_cfg_path) as config_file:
@@ -142,6 +179,7 @@ class NeuralSolver:
         self.model = CustomMOTNeuralSolver.load_from_checkpoint(
             checkpoint_path=ckpt_path
         )
+        self.model.cnn_model.eval()
         self.model.hparams.update(
             {
                 "eval_params": config["eval_params"],
@@ -173,22 +211,18 @@ class NeuralSolver:
             self.preprocessor = FRCNNPreprocessor(obj_detect, self.prepr_params)
 
         self.transforms = ToTensor()
-
-    def track(self, seq_info, img_paths, dets):
-        det_df, w, h = self.preprocess(seq_info, img_paths, dets)
-        seq_info["frame_height"] = h
-        seq_info["frame_width"] = w
-        dataset = MOTGraphDataset(
-            self.model.hparams["dataset_params"],
-            img_paths,
-            det_df,
-            seq_info,
-            self.model.cnn_model,
+        self.extract_transforms = Compose(
+            (
+                Resize(self.model.hparams["dataset_params"]["img_size"]),
+                ToTensor(),
+                Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            )
         )
-        final_out = self.model.track_seq(dataset)
-        return final_out.to_numpy()[:, :6]
 
-    def preprocess(self, seq_info, img_paths, dets):
+        self.use_gt = use_gt
+        self.pre_cnn = pre_cnn
+
+    def initialize(self, seq_info):
         self.preprocessor.reset()
         if self.prepr_w_tracktor:
             if seq_info["seq_name"] in MOV_CAMERA_DICT.keys():
@@ -196,57 +230,128 @@ class NeuralSolver:
                     self.prepr_params["tracker"]["do_align"]
                     and MOV_CAMERA_DICT[seq_info["seq_name"]]
                 )
+        self.seq_info = seq_info
+        self.img_paths = []
+        self.gts = []
 
-        for img_path, det in zip(img_paths, dets):
-            img = Image.open(img_path).convert("RGB")
-            w, h = img.size
-            img = self.transforms(img)
+        self.node_embeds = {}
+        self.reid_embeds = {}
 
-            sample = {}
-            sample["img"] = img.unsqueeze(0)
-            if det is not None and len(det) > 0:
-                bb = np.zeros((len(det), 5), dtype=np.float32)
-                bb[:, 0:2] = det[:, 2:4] - 1
-                bb[:, 2:4] = det[:, 2:4] + det[:, 4:6] - 1
-                sample["dets"] = torch.FloatTensor([d[:4] for d in bb]).unsqueeze(0)
+    def track(self, start_frame, end_frame):
+        if self.use_gt:
+            feedback = []
+            for frame in range(start_frame, end_frame + 1):
+                for t in self.gts[frame]:
+                    feedback.append(
+                        [frame + 1 - start_frame, t[1], t[2], t[3], t[4], t[5]]
+                    )
+            feedback = np.array(feedback)
+        else:
+            if self.prepr_w_tracktor:
+                all_tracks = self.preprocessor.get_results()
+                rows = []
+                for i, track in all_tracks.items():
+                    for frame, bb in track.items():
+                        if frame < start_frame or frame > end_frame:
+                            continue
+
+                        x1 = bb[0]
+                        y1 = bb[1]
+                        x2 = bb[2]
+                        y2 = bb[3]
+                        rows.append(
+                            [
+                                frame + 1 - start_frame,
+                                i + 1,
+                                x1 + 1,
+                                y1 + 1,
+                                x2 - x1 + 1,
+                                y2 - y1 + 1,
+                                -1,
+                                -1,
+                                -1,
+                                -1,
+                            ]
+                        )
+                det_df = pd.DataFrame(np.array(rows))
             else:
-                sample["dets"] = torch.FloatTensor([]).unsqueeze(0)
-            sample["img_path"] = img_path
+                raise ValueError("Please make prepr_w_tracktor True")
 
-            with torch.no_grad():
-                self.preprocessor.step(sample)
+            if self.pre_cnn:
+                reid_embeds = self.reid_embeds
+                node_embeds = self.node_embeds
+            else:
+                reid_embeds = None
+                node_embeds = None
+            dataset = MOTGraphDataset(
+                self.model.hparams["dataset_params"],
+                self.img_paths,
+                det_df,
+                self.seq_info,
+                cnn_model=self.model.cnn_model,
+                reid_embeddings=reid_embeds,
+                node_feats=node_embeds,
+                start_frame=start_frame,
+            )
+            final_out = self.model.track_seq(dataset)
+            feedback = final_out.to_numpy()[:, :6]
 
+        return feedback
+
+    def step(self, img_path, det, gt):
         if self.prepr_w_tracktor:
+            seq_name = self.seq_info["seq_name"]
+            if seq_name in MOV_CAMERA_DICT.keys():
+                self.preprocessor.do_align = (
+                    self.prepr_params["tracker"]["do_align"]
+                    and MOV_CAMERA_DICT[seq_name]
+                )
+
+        img = Image.open(img_path).convert("RGB")
+        w, h = img.size
+        self.seq_info["frame_height"] = h
+        self.seq_info["frame_width"] = w
+        img = self.transforms(img)
+
+        sample = {}
+        sample["img"] = img.unsqueeze(0)
+        if det is not None and len(det) > 0:
+            bb = np.zeros((len(det), 5), dtype=np.float32)
+            bb[:, 0:2] = det[:, 2:4] - 1
+            bb[:, 2:4] = det[:, 2:4] + det[:, 4:6] - 1
+            sample["dets"] = torch.FloatTensor([d[:4] for d in bb]).unsqueeze(0)
+        else:
+            sample["dets"] = torch.FloatTensor([]).unsqueeze(0)
+        sample["img_path"] = img_path
+
+        with torch.no_grad():
+            self.preprocessor.step(sample)
+
+        if self.pre_cnn:
+            frame_img = imread(img_path)
+            bb_imgs = []
+            idx = []
             all_tracks = self.preprocessor.get_results()
-            rows = []
             for i, track in all_tracks.items():
                 for frame, bb in track.items():
-                    x1 = bb[0]
-                    y1 = bb[1]
-                    x2 = bb[2]
-                    y2 = bb[3]
-                    rows.append(
-                        [
-                            frame + 1,
-                            i + 1,
-                            x1 + 1,
-                            y1 + 1,
-                            x2 - x1 + 1,
-                            y2 - y1 + 1,
-                            -1,
-                            -1,
-                            -1,
-                            -1,
-                        ]
-                    )
-            det_df = pd.DataFrame(np.array(rows))
-        else:
-            final_results = pd.concat(self.preprocessor.results_dfs)
-            final_results["bb_left"] += 1  # MOT bbox annotations are 1 -based
-            final_results["bb_top"] += 1  # MOT bbox annotations are 1 -based
-            # final_results["id"] = -1
-            det_df = final_results[
-                ["frame", "id", "bb_left", "bb_top", "bb_width", "bb_height", "conf"]
-            ]
+                    if frame == len(self.img_paths):
+                        bb_img = extract(frame_img, bb, h, w, self.extract_transforms)
+                        bb_imgs.append(bb_img)
+                        idx.append((i + 1, frame + 1))
+            if len(bb_imgs) > 0:
+                with torch.no_grad():
+                    bb_imgs = torch.stack(bb_imgs)
+                    node_out, reid_out = self.model.cnn_model(bb_imgs.cuda())
+                    node_out = node_out.cpu()
+                    reid_out = reid_out.cpu()
+                    for n, (i, frame) in enumerate(idx):
+                        node_embed = self.node_embeds.get(i, dict())
+                        node_embed[frame] = node_out[n]
+                        self.node_embeds[i] = node_embed
 
-        return det_df, w, h
+                        reid_embed = self.reid_embeds.get(i, dict())
+                        reid_embed[frame] = reid_out[n]
+                        self.reid_embeds[i] = reid_embed
+
+        self.img_paths.append(img_path)
+        self.gts.append(gt)

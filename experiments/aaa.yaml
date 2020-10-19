@@ -16,7 +16,7 @@ DATASET_DIR:
 DATASETS:
   # - MOT15
   - MOT16
-  - MOT17
+  # - MOT17
   # - MOT20
   # - DETRAC
 
@@ -29,19 +29,21 @@ FEEDBACK:
   prepr_w_tracktor: True
 
 EXPERTS:
-  - CenterTrack
+  # - CenterTrack
   - DeepMOT
+  - DeepSORT
   - MOTDT
   - Tracktor
   - UMA
 
-DETECTOR:
-  type: fixed
-  duration: 50
-
 OFFLINE:
-  reset: True
   use_gt: False
+  pre_cnn: True
+
+DETECTOR:
+  type: stable
+  duration: 100
+  threshold: 0.9
 
 MATCHING:
   method: anchor
@@ -50,6 +52,6 @@ MATCHING:
   iou_mode: giou
 
 LOSS:
-  delayed: False
+  delayed: True
   type: w_id
-  norm: True
+  bound: 1

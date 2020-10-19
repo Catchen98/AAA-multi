@@ -259,9 +259,18 @@ class IDMatcher:
 
             # match id
             for prev_id, curr_id in matched_id:
-                self.id_table[selected_expert][curr_id] = self.get_id(
-                    prev_selected_expert, prev_id
-                )
+                target_id = self.get_id(prev_selected_expert, prev_id)
+
+                # remove id which is already used
+                remove_key = None
+                for key, value in self.id_table[selected_expert].items():
+                    if value == target_id:
+                        remove_key = key
+                        break
+                if remove_key is not None:
+                    self.id_table[selected_expert].pop(remove_key)
+
+                self.id_table[selected_expert][curr_id] = target_id
 
         # assing id
         curr_expert_bboxes = self.default_match(selected_expert, results)
