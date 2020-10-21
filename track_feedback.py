@@ -8,8 +8,11 @@ from print_manager import do_not_print
 
 
 @do_not_print
-def track_seq(tracker, seq, img_paths, dets):
-    return tracker.track(seq.seq_info, img_paths, dets)
+def track_seq(tracker, seq):
+    tracker.initialize(seq.seq_info)
+    for frame_idx, (img_path, dets, _) in enumerate(seq):
+        tracker.step(img_path, dets, None)
+    return tracker.track(0, len(seq) - 1)
 
 
 def main(config_path):
@@ -26,7 +29,9 @@ def main(config_path):
         config["FEEDBACK"]["reid_weights_path"],
         config["FEEDBACK"]["tracking_cfg_path"],
         config["FEEDBACK"]["preprocessing_cfg_path"],
-        config["FEEDBACK"]["prepr_w_tracktor"],
+        use_gt=False,
+        pre_cnn=False,
+        use_pre=True,
     )
 
     for dataset_name, dataset in datasets.items():
@@ -38,16 +43,7 @@ def main(config_path):
                 print(f"Pass {seq.seq_info['seq_name']}")
             else:
                 print(f"Start {seq.seq_info['seq_name']}")
-                img_paths = []
-                dets = []
-                for frame_idx, (img_path, det, _) in enumerate(seq):
-                    img_paths.append(img_path)
-                    if det is None:
-                        dets.append([])
-                    else:
-                        dets.append(det)
-
-                results = track_seq(tracker, seq, img_paths, dets)
+                results = track_seq(tracker, seq)
                 seq.write_results(results, dataset_dir)
 
         eval_tracker(

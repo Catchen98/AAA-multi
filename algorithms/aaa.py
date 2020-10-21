@@ -54,9 +54,9 @@ class AAA:
             self.config["FEEDBACK"]["reid_weights_path"],
             self.config["FEEDBACK"]["tracking_cfg_path"],
             self.config["FEEDBACK"]["preprocessing_cfg_path"],
-            self.config["FEEDBACK"]["prepr_w_tracktor"],
             self.config["OFFLINE"]["use_gt"],
             self.config["OFFLINE"]["pre_cnn"],
+            self.config["OFFLINE"]["pre_track"],
         )
 
         self.learner = WAADelayed()
@@ -100,7 +100,7 @@ class AAA:
         self.delay.append(1)
         self.evaluated.append(False)
 
-        self.offline.step(img_path, dets, gts)
+        self.offline.step(img_path, dets, gts, results, self.learner.w)
 
         # detect anchor frame
         if self.config["DETECTOR"]["type"] == "fixed":
@@ -185,6 +185,7 @@ class AAA:
             u, c = np.unique(curr_expert_bboxes[:, 0], return_counts=True)
             assert (c == 1).all(), f"Duplicated ID in frame {self.frame_idx}"
 
+        print(f"Frame {self.frame_idx}, Selected {self.selected_expert}")
         return (
             curr_expert_bboxes,
             self.learner.w,

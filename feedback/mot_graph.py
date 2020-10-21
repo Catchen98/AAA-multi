@@ -262,14 +262,8 @@ class MOTGraph(object):
                 row = self.graph_df.iloc[ix]
                 row_id = int(row["id"])
                 row_frame = int(row["frame"]) + start_frame
-                try:
-                    reid_embeddings.append(set_reid_embeddings[row_id][row_frame])
-                    node_feats.append(set_node_feats[row_id][row_frame])
-                except KeyError:
-                    print(f"ID {row_id} Frame {row_frame} Start {start_frame}")
-                    print(set_reid_embeddings.keys())
-                    print(set_reid_embeddings[row_id].keys())
-                    exit()
+                reid_embeddings.append(set_reid_embeddings[row_id][row_frame])
+                node_feats.append(set_node_feats[row_id][row_frame])
             reid_embeddings = torch.stack(reid_embeddings).cuda()
             node_feats = torch.stack(node_feats).cuda()
 
@@ -297,6 +291,7 @@ class MOTGraph(object):
                     reid_embeddings[edge_ixs[1][i : i + 50000]],
                 ).view(-1, 1)
             )
+
         emb_dists = torch.cat(emb_dists, dim=0)
 
         # Add embedding distances to edge features if needed

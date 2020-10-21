@@ -8,11 +8,11 @@ from skimage.io import imread
 
 import torch
 from torchvision.transforms import Compose, Resize, ToTensor, Normalize
+from torchvision.ops import nms
 
 from feedback.mot_graph_dataset import MOTGraphDataset
 
 sys.path.append("external/mot_neural_solver/src")
-from mot_neural_solver.data.preprocessing import FRCNNPreprocessor
 from mot_neural_solver.pl_module.pl_module import MOTNeuralSolver
 from mot_neural_solver.models.mpn import MOTMPNet
 from mot_neural_solver.tracker.mpn_tracker import MPNTracker
@@ -24,6 +24,7 @@ from mot_neural_solver.data.seq_processing.MOT15loader import (
     MOV_CAMERA_DICT as MOT15_MOV_CAMERA_DICT,
 )
 from mot_neural_solver.utils.misc import make_deterministic
+from mot_neural_solver.data.preprocessing import FRCNNPreprocessor
 
 sys.path.append("external/mot_neural_solver/tracking_wo_bnw/src")
 from tracktor.frcnn_fpn import FRCNN_FPN
@@ -160,82 +161,99 @@ class NeuralSolver:
         reid_weights_path,
         tracking_cfg_path,
         preprocessing_cfg_path,
-        prepr_w_tracktor,
         use_gt,
         pre_cnn,
+        pre_track,
     ):
         self.name = "MPNTracker"
-        with open(tracking_cfg_path) as config_file:
-            config = yaml.load(config_file)
-
-        with open(preprocessing_cfg_path) as config_file:
-            pre_config = yaml.load(config_file)
-            frcnn_prepr_params = pre_config["frcnn_prepr_params"]
-            tracktor_params = pre_config["tracktor_params"]
-
-        CustomMOTNeuralSolver.reid_weights_path = reid_weights_path
-
-        # Load model from checkpoint and update config entries that may vary from the ones used in training
-        self.model = CustomMOTNeuralSolver.load_from_checkpoint(
-            checkpoint_path=ckpt_path
-        )
-        self.model.cnn_model.eval()
-        self.model.hparams.update(
-            {
-                "eval_params": config["eval_params"],
-                "data_splits": config["data_splits"],
-            }
-        )
-        self.model.hparams["dataset_params"]["precomputed_embeddings"] = False
-        self.model.hparams["dataset_params"]["img_batch_size"] = 2500
-
-        # preprocessor
-        obj_detect = FRCNN_FPN(num_classes=2)
-
-        obj_detect.load_state_dict(
-            torch.load(frcnn_weights_path, map_location=lambda storage, loc: storage,)
-        )
-        obj_detect.eval()
-        obj_detect.cuda()
-
-        self.prepr_w_tracktor = prepr_w_tracktor
-        if self.prepr_w_tracktor:
-            self.prepr_params = tracktor_params
-        else:
-            self.prepr_params = frcnn_prepr_params
-        make_deterministic(self.prepr_params["seed"])
-
-        if self.prepr_w_tracktor:
-            self.preprocessor = Tracker(obj_detect, None, self.prepr_params["tracker"])
-        else:
-            self.preprocessor = FRCNNPreprocessor(obj_detect, self.prepr_params)
-
-        self.transforms = ToTensor()
-        self.extract_transforms = Compose(
-            (
-                Resize(self.model.hparams["dataset_params"]["img_size"]),
-                ToTensor(),
-                Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            )
-        )
-
         self.use_gt = use_gt
-        self.pre_cnn = pre_cnn
+
+        if not self.use_gt:
+            with open(tracking_cfg_path) as config_file:
+                config = yaml.load(config_file)
+
+            with open(preprocessing_cfg_path) as config_file:
+                pre_config = yaml.load(config_file)
+                frcnn_prepr_params = pre_config["frcnn_prepr_params"]
+                tracktor_params = pre_config["tracktor_params"]
+
+            CustomMOTNeuralSolver.reid_weights_path = reid_weights_path
+
+            # preprocessor
+            self.pre_track = pre_track
+            if self.pre_track != "None":
+                obj_detect = FRCNN_FPN(num_classes=2)
+
+                obj_detect.load_state_dict(
+                    torch.load(
+                        frcnn_weights_path, map_location=lambda storage, loc: storage,
+                    )
+                )
+                obj_detect.eval()
+                obj_detect.cuda()
+
+                if self.pre_track == "Tracktor":
+                    self.prepr_params = tracktor_params
+                    make_deterministic(self.prepr_params["seed"])
+
+                    self.preprocessor = Tracker(
+                        obj_detect, None, self.prepr_params["tracker"]
+                    )
+                elif self.pre_track == "FRCNN":
+                    config["eval_params"]["add_tracktor_detects"] = False
+                    self.prepr_params = frcnn_prepr_params
+                    make_deterministic(self.prepr_params["seed"])
+
+                    self.preprocessor = FRCNNPreprocessor(obj_detect, self.prepr_params)
+                self.transforms = ToTensor()
+
+            # Load model from checkpoint and update config entries that may vary from the ones used in training
+            self.model = CustomMOTNeuralSolver.load_from_checkpoint(
+                checkpoint_path=ckpt_path
+            )
+            self.model.cnn_model.eval()
+            self.model.hparams.update(
+                {
+                    "eval_params": config["eval_params"],
+                    "data_splits": config["data_splits"],
+                }
+            )
+            self.model.hparams["dataset_params"]["precomputed_embeddings"] = False
+            self.model.hparams["dataset_params"]["img_batch_size"] = 2500
+
+            self.pre_cnn = pre_cnn
+            if self.pre_cnn:
+                self.extract_transforms = Compose(
+                    (
+                        Resize(self.model.hparams["dataset_params"]["img_size"]),
+                        ToTensor(),
+                        Normalize(
+                            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                        ),
+                    )
+                )
 
     def initialize(self, seq_info):
-        self.preprocessor.reset()
-        if self.prepr_w_tracktor:
-            if seq_info["seq_name"] in MOV_CAMERA_DICT.keys():
-                self.preprocessor.do_align = (
-                    self.prepr_params["tracker"]["do_align"]
-                    and MOV_CAMERA_DICT[seq_info["seq_name"]]
-                )
         self.seq_info = seq_info
         self.img_paths = []
         self.gts = []
 
-        self.node_embeds = {}
-        self.reid_embeds = {}
+        if not self.use_gt:
+            self.preprocessed = {}
+
+            if self.pre_track != "None":
+                self.preprocessor.reset()
+
+                if self.pre_track == "Tracktor":
+                    if self.seq_info["seq_name"] in MOV_CAMERA_DICT.keys():
+                        self.preprocessor.do_align = (
+                            self.prepr_params["tracker"]["do_align"]
+                            and MOV_CAMERA_DICT[self.seq_info["seq_name"]]
+                        )
+
+            if self.pre_cnn:
+                self.node_embeds = {}
+                self.reid_embeds = {}
 
     def track(self, start_frame, end_frame):
         if self.use_gt:
@@ -247,35 +265,31 @@ class NeuralSolver:
                     )
             feedback = np.array(feedback)
         else:
-            if self.prepr_w_tracktor:
-                all_tracks = self.preprocessor.get_results()
-                rows = []
-                for i, track in all_tracks.items():
-                    for frame, bb in track.items():
-                        if frame < start_frame or frame > end_frame:
-                            continue
+            rows = []
+            for i, track in self.preprocessed.items():
+                for frame, bb in track.items():
+                    if frame < start_frame or frame > end_frame:
+                        continue
 
-                        x1 = bb[0]
-                        y1 = bb[1]
-                        x2 = bb[2]
-                        y2 = bb[3]
-                        rows.append(
-                            [
-                                frame + 1 - start_frame,
-                                i + 1,
-                                x1 + 1,
-                                y1 + 1,
-                                x2 - x1 + 1,
-                                y2 - y1 + 1,
-                                -1,
-                                -1,
-                                -1,
-                                -1,
-                            ]
-                        )
-                det_df = pd.DataFrame(np.array(rows))
-            else:
-                raise ValueError("Please make prepr_w_tracktor True")
+                    x1 = bb[0]
+                    y1 = bb[1]
+                    x2 = bb[2]
+                    y2 = bb[3]
+                    rows.append(
+                        [
+                            frame + 1 - start_frame,
+                            i + 1,
+                            x1 + 1,
+                            y1 + 1,
+                            x2 - x1 + 1,
+                            y2 - y1 + 1,
+                            -1,
+                            -1,
+                            -1,
+                            -1,
+                        ]
+                    )
+            det_df = pd.DataFrame(np.array(rows))
 
             if self.pre_cnn:
                 reid_embeds = self.reid_embeds
@@ -298,46 +312,94 @@ class NeuralSolver:
 
         return feedback
 
-    def step(self, img_path, det, gt):
-        if self.prepr_w_tracktor:
-            seq_name = self.seq_info["seq_name"]
-            if seq_name in MOV_CAMERA_DICT.keys():
-                self.preprocessor.do_align = (
-                    self.prepr_params["tracker"]["do_align"]
-                    and MOV_CAMERA_DICT[seq_name]
-                )
+    def step(self, img_path, det, gt, pre_det=[], weights=[]):
+        self.img_paths.append(img_path)
+        self.gts.append(gt)
 
+        if self.use_gt:
+            return
+
+        current_frame = len(self.img_paths) - 1
         img = Image.open(img_path).convert("RGB")
         w, h = img.size
         self.seq_info["frame_height"] = h
         self.seq_info["frame_width"] = w
-        img = self.transforms(img)
 
-        sample = {}
-        sample["img"] = img.unsqueeze(0)
-        if det is not None and len(det) > 0:
-            bb = np.zeros((len(det), 5), dtype=np.float32)
-            bb[:, 0:2] = det[:, 2:4] - 1
-            bb[:, 2:4] = det[:, 2:4] + det[:, 4:6] - 1
-            sample["dets"] = torch.FloatTensor([d[:4] for d in bb]).unsqueeze(0)
-        else:
-            sample["dets"] = torch.FloatTensor([]).unsqueeze(0)
-        sample["img_path"] = img_path
+        if self.pre_track != "None":
+            img = self.transforms(img)
 
-        with torch.no_grad():
-            self.preprocessor.step(sample)
+            sample = {}
+            sample["img"] = img.unsqueeze(0)
+            if det is not None and len(det) > 0:
+                bb = np.zeros((len(det), 5), dtype=np.float32)
+                bb[:, 0:2] = det[:, 2:4] - 1
+                bb[:, 2:4] = det[:, 2:4] + det[:, 4:6] - 1
+                sample["dets"] = torch.FloatTensor([d[:4] for d in bb]).unsqueeze(0)
+            else:
+                sample["dets"] = torch.FloatTensor([]).unsqueeze(0)
+            sample["img_path"] = img_path
+
+            with torch.no_grad():
+                self.preprocessor.step(sample)
+
+        if self.pre_track == "Tracktor":
+            self.preprocessed = self.preprocessor.get_results().copy()
+
+        elif self.pre_track == "FRCNN":
+            df = self.preprocessor.results_dfs[-1]
+            for ix in range(len(df)):
+                row = df.iloc[ix]
+                preprocessed = self.preprocessed.get(ix, dict())
+                preprocessed[current_frame] = np.array(
+                    [
+                        row["bb_left"],
+                        row["bb_top"],
+                        row["bb_left"] + row["bb_width"],
+                        row["bb_top"] + row["bb_height"],
+                    ]
+                )
+                self.preprocessed[ix] = preprocessed
+
+        elif self.pre_track == "None":
+            boxes = []
+            scores = []
+            ids = []
+            for n, (det, weight) in enumerate(zip(pre_det, weights)):
+                for bbox in det:
+                    bbox_id = n * 1000000 + bbox[0]
+                    bb = bbox[1:5]
+                    bb[2:4] += bb[:2]
+                    boxes.append(bb)
+                    scores.append(weight)
+                    ids.append(bbox_id)
+            boxes = torch.tensor(boxes, dtype=torch.float)
+            scores = torch.tensor(scores, dtype=torch.float)
+            keep = nms(boxes, scores, 0.5)
+            for i in keep:
+                preprocessed = self.preprocessed.get(ids[i], dict())
+                preprocessed[current_frame] = boxes[i].numpy()
+                self.preprocessed[ids[i]] = preprocessed
+
+            # for n, (det, weight) in enumerate(zip(pre_det, weights)):
+            #     for bbox in det:
+            #         bbox_id = n * 1000000 + bbox[0]
+            #         preprocessed = self.preprocessed.get(bbox_id, dict())
+            #         preprocessed[current_frame] = bbox[1:5]
+            #         preprocessed[current_frame][2:4] += preprocessed[current_frame][:2]
+            #         self.preprocessed[bbox_id] = preprocessed
 
         if self.pre_cnn:
             frame_img = imread(img_path)
             bb_imgs = []
             idx = []
-            all_tracks = self.preprocessor.get_results()
-            for i, track in all_tracks.items():
-                for frame, bb in track.items():
-                    if frame == len(self.img_paths):
-                        bb_img = extract(frame_img, bb, h, w, self.extract_transforms)
-                        bb_imgs.append(bb_img)
-                        idx.append((i + 1, frame + 1))
+            for i, track in self.preprocessed.items():
+                if current_frame in track.keys():
+                    bb_img = extract(
+                        frame_img, track[current_frame], h, w, self.extract_transforms
+                    )
+                    bb_imgs.append(bb_img)
+                    idx.append((i + 1, current_frame + 1))
+
             if len(bb_imgs) > 0:
                 with torch.no_grad():
                     bb_imgs = torch.stack(bb_imgs)
@@ -352,6 +414,3 @@ class NeuralSolver:
                         reid_embed = self.reid_embeds.get(i, dict())
                         reid_embed[frame] = reid_out[n]
                         self.reid_embeds[i] = reid_embed
-
-        self.img_paths.append(img_path)
-        self.gts.append(gt)

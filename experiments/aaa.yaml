@@ -26,7 +26,6 @@ FEEDBACK:
   reid_weights_path: weights/NeuralSolver/resnet50_market_cuhk_duke.tar-232
   tracking_cfg_path: external/mot_neural_solver/configs/tracking_cfg.yaml
   preprocessing_cfg_path: external/mot_neural_solver/configs/preprocessing_cfg.yaml
-  prepr_w_tracktor: True
 
 EXPERTS:
   # - CenterTrack
@@ -39,11 +38,12 @@ EXPERTS:
 OFFLINE:
   use_gt: False
   pre_cnn: True
+  pre_track: None
 
 DETECTOR:
   type: stable
-  duration: 100
-  threshold: 0.9
+  duration: 70
+  threshold: 0.5
 
 MATCHING:
   method: anchor
@@ -54,4 +54,4 @@ MATCHING:
 LOSS:
   delayed: True
   type: w_id
-  bound: 1
+  bound: 0.01

@@ -66,7 +66,7 @@ class AnchorDetector:
                 is_anchor = False
                 feedback = None
 
-            # print(f"Frame {frame_idx}, MOTA {mean_mota}")
+            print(f"Frame {frame_idx}, MOTA {mean_mota}")
         else:
             is_anchor = False
             feedback = None
@@ -75,6 +75,7 @@ class AnchorDetector:
         return is_anchor, feedback, feedback_length
 
     def _get_feedback(self, start_frame, end_frame):
+        # feedback = self.offline.track(start_frame, end_frame)
         try:
             feedback = self.offline.track(start_frame, end_frame)
         except (RuntimeError, ValueError):
