@@ -38,7 +38,7 @@ EXPERTS:
 OFFLINE:
   use_gt: False
   pre_cnn: True
-  pre_track: None
+  pre_track: FRCNN
 
 DETECTOR:
   type: stable

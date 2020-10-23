@@ -83,7 +83,7 @@ class AAA:
         for i, result in enumerate(results):
             if len(result) > 0:
                 frame_result = np.zeros((result.shape[0], result.shape[1] + 1))
-                frame_result[:, 1:] = result
+                frame_result[:, 1:] = result.copy()
                 frame_result[:, 0] = self.frame_idx + 1
                 if len(self.experts_results[i]) > 0:
                     self.experts_results[i] = np.concatenate(
@@ -185,7 +185,7 @@ class AAA:
             u, c = np.unique(curr_expert_bboxes[:, 0], return_counts=True)
             assert (c == 1).all(), f"Duplicated ID in frame {self.frame_idx}"
 
-        print(f"Frame {self.frame_idx}, Selected {self.selected_expert}")
+        # print(f"Frame {self.frame_idx}, Selected {self.selected_expert}")
         return (
             curr_expert_bboxes,
             self.learner.w,

@@ -5,13 +5,26 @@ from datasets.mot import MOT
 from feedback.neural_solver import NeuralSolver
 from evaluate_tracker import eval_tracker
 from print_manager import do_not_print
+from file_manager import ReadResult
 
 
 @do_not_print
-def track_seq(tracker, seq):
+def track_seq(output_dir, experts_name, tracker, seq):
     tracker.initialize(seq.seq_info)
+    experts_reader = [
+        ReadResult(
+            output_dir,
+            seq.seq_info["dataset_name"],
+            expert_name,
+            seq.seq_info["seq_name"],
+        )
+        for expert_name in experts_name
+    ]
     for frame_idx, (img_path, dets, _) in enumerate(seq):
-        tracker.step(img_path, dets, None)
+        expert_results = []
+        for reader in experts_reader:
+            expert_results.append(reader.get_result_by_frame(frame_idx))
+        tracker.step(img_path, dets, None, expert_results)
     return tracker.track(0, len(seq) - 1)
 
 
@@ -29,10 +42,15 @@ def main(config_path):
         config["FEEDBACK"]["reid_weights_path"],
         config["FEEDBACK"]["tracking_cfg_path"],
         config["FEEDBACK"]["preprocessing_cfg_path"],
-        use_gt=False,
-        pre_cnn=False,
-        use_pre=True,
+        config["OFFLINE"]["use_gt"],
+        config["OFFLINE"]["pre_cnn"],
+        config["OFFLINE"]["pre_track"],
     )
+
+    if config["OFFLINE"]["pre_track"] == "None":
+        tracker.name = tracker.name + f"{config['EXPERTS']}"
+    else:
+        tracker.name = tracker.name + f"[{config['OFFLINE']['pre_track']}]"
 
     for dataset_name, dataset in datasets.items():
         dataset_dir = Path(
@@ -43,7 +61,9 @@ def main(config_path):
                 print(f"Pass {seq.seq_info['seq_name']}")
             else:
                 print(f"Start {seq.seq_info['seq_name']}")
-                results = track_seq(tracker, seq)
+                results = track_seq(
+                    config["OUTPUT_DIR"], config["EXPERTS"], tracker, seq
+                )
                 seq.write_results(results, dataset_dir)
 
         eval_tracker(

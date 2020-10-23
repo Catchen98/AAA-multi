@@ -26,9 +26,9 @@ def eval_tracker(dataset_dir, output_dir, tracker, dataset_name, result_dir):
         )
 
         tsfiles = [
-            f
-            for f in glob.glob(os.path.join(output_dir, dataset_name, tracker, "*.txt"))
-            if not os.path.basename(f).startswith("eval")
+            os.path.join(output_dir, dataset_name, tracker, f)
+            for f in os.listdir(os.path.join(output_dir, dataset_name, tracker))
+            if f.endswith(".txt")
         ]
 
         if dataset_name == "MOT15":

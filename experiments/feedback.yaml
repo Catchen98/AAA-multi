@@ -14,10 +14,10 @@ DATASET_DIR:
   DETRAC: /home/heonsong/Disk2/Dataset/DETRAC
 
 DATASETS:
-  - MOT15
+  # - MOT15
   - MOT16
-  - MOT17
-  - MOT20
+  # - MOT17
+  # - MOT20
 
 FEEDBACK:
   ckpt_path: weights/NeuralSolver/mot_mpnet_epoch_006.ckpt
@@ -25,3 +25,16 @@ FEEDBACK:
   reid_weights_path: weights/NeuralSolver/resnet50_market_cuhk_duke.tar-232
   tracking_cfg_path: external/mot_neural_solver/configs/tracking_cfg.yaml
   preprocessing_cfg_path: external/mot_neural_solver/configs/preprocessing_cfg.yaml
+
+EXPERTS:
+  # - CenterTrack
+  - DeepMOT
+  - DeepSORT
+  - MOTDT
+  - Tracktor
+  - UMA
+
+OFFLINE:
+  use_gt: False
+  pre_cnn: True
+  pre_track: FRCNN

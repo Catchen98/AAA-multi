@@ -11,6 +11,7 @@ from torchvision.transforms import Compose, Resize, ToTensor, Normalize
 from torchvision.ops import nms
 
 from feedback.mot_graph_dataset import MOTGraphDataset
+from feedback.preprocessing import FRCNNPreprocessor
 
 sys.path.append("external/mot_neural_solver/src")
 from mot_neural_solver.pl_module.pl_module import MOTNeuralSolver
@@ -24,7 +25,6 @@ from mot_neural_solver.data.seq_processing.MOT15loader import (
     MOV_CAMERA_DICT as MOT15_MOV_CAMERA_DICT,
 )
 from mot_neural_solver.utils.misc import make_deterministic
-from mot_neural_solver.data.preprocessing import FRCNNPreprocessor
 
 sys.path.append("external/mot_neural_solver/tracking_wo_bnw/src")
 from tracktor.frcnn_fpn import FRCNN_FPN
@@ -181,7 +181,7 @@ class NeuralSolver:
 
             # preprocessor
             self.pre_track = pre_track
-            if self.pre_track != "None":
+            if self.pre_track == "Tracktor" or self.pre_track == "FRCNN":
                 obj_detect = FRCNN_FPN(num_classes=2)
 
                 obj_detect.load_state_dict(
@@ -200,7 +200,6 @@ class NeuralSolver:
                         obj_detect, None, self.prepr_params["tracker"]
                     )
                 elif self.pre_track == "FRCNN":
-                    config["eval_params"]["add_tracktor_detects"] = False
                     self.prepr_params = frcnn_prepr_params
                     make_deterministic(self.prepr_params["seed"])
 
@@ -241,7 +240,7 @@ class NeuralSolver:
         if not self.use_gt:
             self.preprocessed = {}
 
-            if self.pre_track != "None":
+            if self.pre_track == "Tracktor" or self.pre_track == "FRCNN":
                 self.preprocessor.reset()
 
                 if self.pre_track == "Tracktor":
@@ -325,12 +324,26 @@ class NeuralSolver:
         self.seq_info["frame_height"] = h
         self.seq_info["frame_width"] = w
 
-        if self.pre_track != "None":
+        if self.pre_track == "Tracktor" or self.pre_track == "FRCNN":
             img = self.transforms(img)
 
             sample = {}
             sample["img"] = img.unsqueeze(0)
-            if det is not None and len(det) > 0:
+
+            if len(pre_det) > 0:
+                boxes = []
+                ids = []
+                for n, det in enumerate(pre_det):
+                    for bbox in det:
+                        bbox_id = n * 1000000 + bbox[0]
+                        bb = np.zeros((4), dtype=np.float32)
+                        bb[0:2] = bbox[1:3] - 1
+                        bb[2:4] = bbox[1:3] + bbox[3:5] - 1
+                        boxes.append(bb)
+                        ids.append(bbox_id)
+                sample["dets"] = torch.FloatTensor([d[:4] for d in boxes]).unsqueeze(0)
+                sample["ids"] = np.array(ids)
+            elif det is not None and len(det) > 0:
                 bb = np.zeros((len(det), 5), dtype=np.float32)
                 bb[:, 0:2] = det[:, 2:4] - 1
                 bb[:, 2:4] = det[:, 2:4] + det[:, 4:6] - 1
@@ -349,7 +362,7 @@ class NeuralSolver:
             df = self.preprocessor.results_dfs[-1]
             for ix in range(len(df)):
                 row = df.iloc[ix]
-                preprocessed = self.preprocessed.get(ix, dict())
+                preprocessed = self.preprocessed.get(row["id"], dict())
                 preprocessed[current_frame] = np.array(
                     [
                         row["bb_left"],
@@ -358,35 +371,35 @@ class NeuralSolver:
                         row["bb_top"] + row["bb_height"],
                     ]
                 )
-                self.preprocessed[ix] = preprocessed
+                self.preprocessed[row["id"]] = preprocessed
 
         elif self.pre_track == "None":
             boxes = []
             scores = []
             ids = []
+            if len(weights) == 0:
+                weights = np.ones((len(pre_det)))
             for n, (det, weight) in enumerate(zip(pre_det, weights)):
                 for bbox in det:
                     bbox_id = n * 1000000 + bbox[0]
-                    bb = bbox[1:5]
-                    bb[2:4] += bb[:2]
+                    bb = np.zeros((4), dtype=np.float32)
+                    bb[0:2] = bbox[1:3] - 1
+                    bb[2:4] = bbox[1:3] + bbox[3:5] - 1
                     boxes.append(bb)
                     scores.append(weight)
                     ids.append(bbox_id)
-            boxes = torch.tensor(boxes, dtype=torch.float)
-            scores = torch.tensor(scores, dtype=torch.float)
-            keep = nms(boxes, scores, 0.5)
-            for i in keep:
-                preprocessed = self.preprocessed.get(ids[i], dict())
-                preprocessed[current_frame] = boxes[i].numpy()
-                self.preprocessed[ids[i]] = preprocessed
-
-            # for n, (det, weight) in enumerate(zip(pre_det, weights)):
-            #     for bbox in det:
-            #         bbox_id = n * 1000000 + bbox[0]
-            #         preprocessed = self.preprocessed.get(bbox_id, dict())
-            #         preprocessed[current_frame] = bbox[1:5]
-            #         preprocessed[current_frame][2:4] += preprocessed[current_frame][:2]
-            #         self.preprocessed[bbox_id] = preprocessed
+            if len(boxes) > 1:
+                boxes = torch.tensor(boxes, dtype=torch.float)
+                scores = torch.tensor(scores, dtype=torch.float)
+                keep = nms(boxes, scores, 0.5)
+                for i in keep:
+                    preprocessed = self.preprocessed.get(ids[i], dict())
+                    preprocessed[current_frame] = boxes[i].numpy()
+                    self.preprocessed[ids[i]] = preprocessed
+            elif len(boxes) == 1:
+                preprocessed = self.preprocessed.get(ids[0], dict())
+                preprocessed[current_frame] = boxes[0]
+                self.preprocessed[ids[0]] = preprocessed
 
         if self.pre_cnn:
             frame_img = imread(img_path)
