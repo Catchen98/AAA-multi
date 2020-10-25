@@ -12,10 +12,10 @@ DATASET_DIR:
   DETRAC: /home/heonsong/Disk2/Dataset/DETRAC
 
 DATASETS:
-  # - MOT15
+  - MOT15
   - MOT16
   - MOT17
-  # - MOT20
+  - MOT20
   # - DETRAC
 
 DAN:

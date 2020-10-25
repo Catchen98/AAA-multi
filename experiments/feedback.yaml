@@ -14,10 +14,10 @@ DATASET_DIR:
   DETRAC: /home/heonsong/Disk2/Dataset/DETRAC
 
 DATASETS:
-  # - MOT15
+  - MOT15
   - MOT16
-  # - MOT17
-  # - MOT20
+  - MOT17
+  - MOT20
 
 FEEDBACK:
   ckpt_path: weights/NeuralSolver/mot_mpnet_epoch_006.ckpt

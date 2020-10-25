@@ -8,7 +8,6 @@ from skimage.io import imread
 
 import torch
 from torchvision.transforms import Compose, Resize, ToTensor, Normalize
-from torchvision.ops import nms
 
 from feedback.mot_graph_dataset import MOTGraphDataset
 from feedback.preprocessing import FRCNNPreprocessor
@@ -71,7 +70,10 @@ def extract(frame_img, bbox, frame_height, frame_width, transforms):
         mode="mean",
     )
 
-    bb_img = Image.fromarray(bb_img)
+    try:
+        bb_img = Image.fromarray(bb_img)
+    except ValueError:
+        return None
     if transforms is not None:
         bb_img = transforms(bb_img)
 
@@ -373,34 +375,6 @@ class NeuralSolver:
                 )
                 self.preprocessed[row["id"]] = preprocessed
 
-        elif self.pre_track == "None":
-            boxes = []
-            scores = []
-            ids = []
-            if len(weights) == 0:
-                weights = np.ones((len(pre_det)))
-            for n, (det, weight) in enumerate(zip(pre_det, weights)):
-                for bbox in det:
-                    bbox_id = n * 1000000 + bbox[0]
-                    bb = np.zeros((4), dtype=np.float32)
-                    bb[0:2] = bbox[1:3] - 1
-                    bb[2:4] = bbox[1:3] + bbox[3:5] - 1
-                    boxes.append(bb)
-                    scores.append(weight)
-                    ids.append(bbox_id)
-            if len(boxes) > 1:
-                boxes = torch.tensor(boxes, dtype=torch.float)
-                scores = torch.tensor(scores, dtype=torch.float)
-                keep = nms(boxes, scores, 0.5)
-                for i in keep:
-                    preprocessed = self.preprocessed.get(ids[i], dict())
-                    preprocessed[current_frame] = boxes[i].numpy()
-                    self.preprocessed[ids[i]] = preprocessed
-            elif len(boxes) == 1:
-                preprocessed = self.preprocessed.get(ids[0], dict())
-                preprocessed[current_frame] = boxes[0]
-                self.preprocessed[ids[0]] = preprocessed
-
         if self.pre_cnn:
             frame_img = imread(img_path)
             bb_imgs = []
@@ -410,8 +384,11 @@ class NeuralSolver:
                     bb_img = extract(
                         frame_img, track[current_frame], h, w, self.extract_transforms
                     )
-                    bb_imgs.append(bb_img)
-                    idx.append((i + 1, current_frame + 1))
+                    if bb_img is None:
+                        self.preprocessed[i].pop(current_frame)
+                    else:
+                        bb_imgs.append(bb_img)
+                        idx.append((i + 1, current_frame + 1))
 
             if len(bb_imgs) > 0:
                 with torch.no_grad():
