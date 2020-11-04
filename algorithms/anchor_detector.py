@@ -66,7 +66,7 @@ class AnchorDetector:
                 is_anchor = False
                 feedback = None
 
-            print(f"Frame {frame_idx}, MOTA {mean_mota}")
+            # print(f"Frame {frame_idx}, MOTA {mean_mota}")
 
         else:
             is_anchor = False

@@ -90,18 +90,32 @@ def convert_df(results, is_offline=False):
 
 
 def frame_loss(df_map, frame_list):
-    df = df_map.noraw
+    if not isinstance(df_map, pd.DataFrame):
+        df = df_map.noraw.reset_index()
+    else:
+        df = df_map
     fp = df[df["Type"] == "FP"]
     fn = df[df["Type"] == "MISS"]
     ids = df[df["Type"] == "SWITCH"]
 
     result = np.zeros((len(frame_list), 3))
     for i, frame in enumerate(frame_list):
-        result[i] = [
-            len(fp.Type.get(frame, [])),
-            len(fn.Type.get(frame, [])),
-            len(ids.Type.get(frame, [])),
-        ]
+        if len(fp) > 0:
+            frame_fp = (fp["FrameId"] == frame).sum()
+        else:
+            frame_fp = 0
+
+        if len(fn) > 0:
+            frame_fn = (fn["FrameId"] == frame).sum()
+        else:
+            frame_fn = 0
+
+        if len(ids) > 0:
+            frame_ids = (ids["FrameId"] == frame).sum()
+        else:
+            frame_ids = 0
+
+        result[i] = [frame_fp, frame_fn, frame_ids]
 
     return result
 

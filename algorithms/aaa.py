@@ -117,45 +117,62 @@ class AAA:
 
         # update weight
         if is_anchor and feedback is not None:
-            df_feedback = convert_df(feedback, is_offline=True)
+            first_unevaluated_idx = self.evaluated[-feedback_length:].index(False)
+            is_last = False
+            if first_unevaluated_idx == feedback_length - 1:
+                first_unevaluated_idx = feedback_length - 2
+                is_last = True
+            feedback_idx = feedback[:, 0] > first_unevaluated_idx
+            evaluate_feedback = feedback[feedback_idx].copy()
+            evaluate_feedback[:, 0] -= first_unevaluated_idx
+            feedback_max = int(evaluate_feedback[:, 0].max()) if len(evaluate_feedback) > 0 else 0
 
-            # calculate loss
-            gradient_losses = np.zeros((self.n_experts))
-            dt = (
-                self.frame_idx + 1 - feedback_length
-                if self.frame_idx + 1 > feedback_length
-                else 0
-            )
-            for i, expert_results in enumerate(self.experts_results):
-                if len(expert_results) > 0:
-                    evaluate_idx = expert_results[:, 0] > dt
-                    evaluate_results = expert_results[evaluate_idx]
-                    evaluate_results[:, 0] -= dt
-                df_expert_results = convert_df(evaluate_results)
+            if feedback_max > 0:
+                df_feedback = convert_df(evaluate_feedback, is_offline=True)
 
-                acc, ana, df_map = eval_results(
-                    self.seq_info, df_feedback, df_expert_results,
+                # calculate loss
+                gradient_losses = np.zeros((self.n_experts))
+                dt = (
+                    self.frame_idx + 1 - feedback_length
+                    if self.frame_idx + 1 > feedback_length
+                    else 0
                 )
-                loss = frame_loss(df_map, range(1, feedback_length + 1))
-                if self.config["LOSS"]["type"] == "w_id":
-                    loss = loss.sum(axis=1)
-                elif self.config["LOSS"]["type"] == "wo_id":
-                    loss = loss[:, :2].sum(axis=1)
-                elif self.config["LOSS"]["type"] == "fn":
-                    loss = loss[:, 1]
-                loss = (
-                    loss
-                    * ~np.array(self.evaluated[-feedback_length:])
-                    / self.config["LOSS"]["bound"]
+                for i, expert_results in enumerate(self.experts_results):
+                    if len(expert_results) > 0:
+                        evaluate_idx = expert_results[:, 0] > dt + first_unevaluated_idx
+                        evaluate_results = expert_results[evaluate_idx].copy()
+                        evaluate_results[:, 0] -= dt + first_unevaluated_idx
+
+                        evaluate_idx = feedback_max >= evaluate_results[:, 0]
+                        evaluate_results = evaluate_results[evaluate_idx]
+                    else:
+                        evaluate_results = []
+                    df_expert_results = convert_df(evaluate_results)
+
+                    acc, ana, df_map = eval_results(
+                        self.seq_info, df_feedback, df_expert_results,
+                    )
+                    loss = frame_loss(df_map, range(1, feedback_max + 1))
+                    if self.config["LOSS"]["type"] == "w_id":
+                        loss = loss.sum(axis=1)
+                    elif self.config["LOSS"]["type"] == "wo_id":
+                        loss = loss[:, :2].sum(axis=1)
+                    elif self.config["LOSS"]["type"] == "fn":
+                        loss = loss[:, 1]
+                    if is_last:
+                        loss = loss[-1]
+                    loss /= self.config["LOSS"]["bound"]
+
+                    gradient_losses[i] = loss.sum()
+
+                self.learner.update(gradient_losses, self.delay)
+
+                self.evaluated[-feedback_length:] = [True] * len(
+                    self.evaluated[-feedback_length:]
                 )
-
-                gradient_losses[i] = loss.sum()
-
-            self.learner.update(gradient_losses, self.delay)
-
-            self.evaluated[-feedback_length:] = [True] * len(
-                self.evaluated[-feedback_length:]
-            )
+            else:
+                feedback = None
+                gradient_losses = None
         else:
             feedback = None
             gradient_losses = None

@@ -141,9 +141,9 @@ model/
 log/
 
 # result
-output/
-visualize/
-eval/
+*output/
+*visualize/
+*eval/
 
 # backup
-backup/
+*backup/

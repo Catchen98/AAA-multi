@@ -1,7 +1,7 @@
 eval "$(conda shell.bash hook)"
 
 # "CenterTrack" "DeepMOT" "DeepSORT" "MOTDT" "Tracktor" "UMA"
-experts=("DeepMOT" "DeepSORT" "MOTDT" "Tracktor" "UMA")
+experts=("CenterTrack" "DeepMOT" "DeepSORT" "MOTDT" "Tracktor" "UMA")
 
 # CUDA_VISIBLE_DEVICES=1
 for (( i=0; i<${#experts[@]}; i++ )); do

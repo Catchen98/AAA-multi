@@ -173,10 +173,10 @@ class MOT:
         self.c = 0
 
     def __len__(self):
-        return len(self.sequences["train"])
+        return len(self.sequences["test"])
 
     def __getitem__(self, item):
-        return self.sequences["train"][item]
+        return self.sequences["test"][item]
 
     def __iter__(self):
         return self

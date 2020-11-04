@@ -1,5 +1,6 @@
 import os
 import yaml
+import time
 from pathlib import Path
 
 import torch
@@ -18,7 +19,7 @@ np.random.seed(SEED)
 random.seed(SEED)
 
 
-# @do_not_print
+@do_not_print
 def track_seq(output_dir, experts_name, algorithm, seq):
     algorithm.initialize(seq.seq_info)
     experts_reader = [
@@ -36,15 +37,21 @@ def track_seq(output_dir, experts_name, algorithm, seq):
     expert_losses = []
     feedbacks = []
     selected_experts = []
+    times = []
 
     for frame_idx, (img_path, dets, gts) in enumerate(seq):
         expert_results = []
         for reader in experts_reader:
             expert_results.append(reader.get_result_by_frame(frame_idx))
 
+        start_time = time.time()
         result, w, expert_loss, feedback, selected_expert = algorithm.track(
             img_path, dets, gts, expert_results
         )
+        end_time = time.time() - start_time
+        times.append(end_time)
+        # print(f"Frame {frame_idx}: {end_time}s")
+
         if len(result) > 0:
             frame_result = np.zeros((result.shape[0], result.shape[1] + 1))
             frame_result[:, 1:] = result
@@ -79,7 +86,7 @@ def track_seq(output_dir, experts_name, algorithm, seq):
     feedbacks = np.concatenate(feedbacks, axis=0)
     selected_experts = np.concatenate(selected_experts, axis=0)
 
-    return results, ws, expert_losses, feedbacks, selected_experts
+    return results, ws, expert_losses, feedbacks, selected_experts, times
 
 
 @do_not_print
@@ -88,66 +95,66 @@ def get_algorithm(config):
 
 
 def main(config_path):
-    thresholds = [0.5, 0.6, 0.7]
+    with open(config_path) as c:
+        config = yaml.load(c, Loader=yaml.FullLoader)
 
+    durations = [100]
+    thresholds = [0.4, 0.5, 0.6, 0.7]
     for threshold in thresholds:
-        with open(config_path) as c:
-            config = yaml.load(c, Loader=yaml.FullLoader)
+        for duration in durations:
+            config["DETECTOR"]["duration"] = duration
+            config["DETECTOR"]["threshold"] = threshold
 
-        config["DETECTOR"]["threshold"] = threshold
+            datasets = {
+                dataset_name: MOT(config["DATASET_DIR"][dataset_name])
+                for dataset_name in config["DATASETS"]
+            }
 
-        datasets = {
-            dataset_name: MOT(config["DATASET_DIR"][dataset_name])
-            for dataset_name in config["DATASETS"]
-        }
+            algorithm = get_algorithm(config)
 
-        algorithm = get_algorithm(config)
+            for dataset_name, dataset in datasets.items():
+                dataset_dir = Path(
+                    os.path.join(config["OUTPUT_DIR"], dataset_name, algorithm.name)
+                )
 
-        for dataset_name, dataset in datasets.items():
-            dataset_dir = Path(
-                os.path.join(config["OUTPUT_DIR"], dataset_name, algorithm.name)
-            )
+                total_time = []
 
-            for seq in dataset:
-                if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
-                    print(f"Pass {seq.seq_info['seq_name']}")
-                else:
-                    print(f"Start {seq.seq_info['seq_name']}")
-                    (
-                        results,
-                        ws,
-                        expert_losses,
-                        feedbacks,
-                        selected_experts,
-                    ) = track_seq(
-                        config["OUTPUT_DIR"], config["EXPERTS"], algorithm, seq
-                    )
-                    seq.write_results(results, dataset_dir)
-                    write_results(
-                        ws, dataset_dir, f"{seq.seq_info['seq_name']}_weight.txt",
-                    )
-                    write_results(
-                        expert_losses,
-                        dataset_dir,
-                        f"{seq.seq_info['seq_name']}_loss.txt",
-                    )
-                    write_results(
-                        feedbacks,
-                        dataset_dir,
-                        f"{seq.seq_info['seq_name']}_feedback.txt",
-                    )
-                    write_results(
-                        selected_experts,
-                        dataset_dir,
-                        f"{seq.seq_info['seq_name']}_selected.txt",
-                    )
-            eval_tracker(
-                config["DATASET_DIR"],
-                config["OUTPUT_DIR"],
-                algorithm.name,
-                dataset_name,
-                config["EVAL_DIR"],
-            )
+                for seq in dataset:
+                    if (dataset_dir / f"{seq.seq_info['seq_name']}.txt").exists():
+                        print(f"Pass {seq.seq_info['seq_name']}")
+                    else:
+                        print(f"Start {seq.seq_info['seq_name']}")
+                        (results, ws, expert_losses, feedbacks, selected_experts, times) = track_seq(
+                            config["OUTPUT_DIR"], config["EXPERTS"], algorithm, seq
+                        )
+                        seq.write_results(results, dataset_dir)
+                        write_results(
+                            ws, dataset_dir, f"{seq.seq_info['seq_name']}_weight.txt",
+                        )
+                        write_results(
+                            expert_losses, dataset_dir, f"{seq.seq_info['seq_name']}_loss.txt",
+                        )
+                        write_results(
+                            feedbacks, dataset_dir, f"{seq.seq_info['seq_name']}_feedback.txt",
+                        )
+                        write_results(
+                            selected_experts,
+                            dataset_dir,
+                            f"{seq.seq_info['seq_name']}_selected.txt",
+                        )
+                        np.savetxt(dataset_dir / f"{seq.seq_info['seq_name']}_time.txt", times)
+                        total_time += times
+
+                print(f"Total time: {sum(total_time)}s")
+                # tracker_dir = os.path.join(config["EVAL_DIR"], "Ours", dataset_name)
+                # eval_tracker(
+                #     config["DATASET_DIR"],
+                #     config["OUTPUT_DIR"],
+                #     algorithm.name,
+                #     dataset_name,
+                #     config["EVAL_DIR"],
+                #     tracker_dir,
+                # )
 
 
 if __name__ == "__main__":

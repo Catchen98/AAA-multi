@@ -7,6 +7,7 @@ class ReadResult:
         self.results = pd.read_csv(
             os.path.join(output_dir, dataset_name, expert_name, f"{seq_name}.txt"),
             header=None,
+            sep=' |,',
         )
         self.results_group = self.results.groupby(0)
         self.frames = list(self.results_group.indices.keys())

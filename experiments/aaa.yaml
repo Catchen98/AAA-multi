@@ -14,9 +14,9 @@ DATASET_DIR:
   DETRAC: /home/heonsong/Disk2/Dataset/DETRAC
 
 DATASETS:
-  # - MOT15
-  - MOT16
-  - MOT17
+  - MOT15
+  # - MOT16
+  # - MOT17
   # - MOT20
   # - DETRAC
 
@@ -28,12 +28,29 @@ FEEDBACK:
   preprocessing_cfg_path: external/mot_neural_solver/configs/preprocessing_cfg.yaml
 
 EXPERTS:
-  # - CenterTrack
-  - DeepMOT
-  - DeepSORT
-  - MOTDT
+  # - DeepMOT # Train
+  # - DeepSORT
+  # - MOTDT
+  # - Tracktor
+  # - UMA
+  - AMIR15 # MOT15
+  - AP_HWDPL_p
+  - KCF
+  - STRN
   - Tracktor
-  - UMA
+  - TrctrD15
+  # - GSM_Tracktor # MOT16
+  # - KCF16
+  # - MLT
+  # - PV_16
+  # - Tracktor 
+  # - TrctrD16
+  # - FAMNet # MOT 17
+  # - GSM_Tracktor
+  # - SRF17
+  # - Tracktor
+  # - TrctrD17
+  # - YOONKJ17
 
 OFFLINE:
   use_gt: False
@@ -43,7 +60,7 @@ OFFLINE:
 DETECTOR:
   type: stable
   duration: 70
-  threshold: 0.5
+  threshold: 0.4
 
 MATCHING:
   method: anchor
@@ -54,4 +71,4 @@ MATCHING:
 LOSS:
   delayed: True
   type: w_id
-  bound: 0.01
+  bound: 1.0
